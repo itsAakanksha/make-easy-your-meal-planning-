@@ -1,0 +1,37 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "migrate": "drizzle-kit push:pg",
+    "generate": "drizzle-kit generate:pg",
+    "db:push": "npx drizzle-kit push",
+    "db:generate": "drizzle-kit generate:pg",
+    "db:migrate": "ts-node setup-db.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@clerk/clerk-sdk-node": "^4.13.0",
+    "@google/generative-ai": "^0.2.1",
+    "@types/cors": "^2.8.17",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.42.0",
+    "drizzle-zod": "^0.5.0",
+    "express": "^4.18.2",
+    "pg": "^8.14.1",
+    "postgres": "^3.4.5",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.18",
+    "@types/node": "^20.5.7",
+    "@types/pg": "^8.11.13",
+    "drizzle-kit": "^0.31.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  }
+}
