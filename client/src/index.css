@@ -22,8 +22,11 @@
   
   /* Accents */
   --muted: oklch(0.85 0.03 160);           /* Soft Sage #8AA39B */
+  --muted-foreground: oklch(0.4 0 0);      /* Medium Gray for text */
   --accent: oklch(0.9 0.08 70);            /* Golden Peach #FFD8B1 */
+  --accent-foreground: oklch(0.18 0 0);    /* Charcoal Gray */
   --destructive: oklch(0.7 0.2 25);        /* Adjusted for accessibility */
+  --destructive-foreground: oklch(0.98 0 0); /* White */
   
   /* Neutrals */
   --border: oklch(0.85 0.01 80);           /* Soft Taupe #D3CEC4 */
@@ -41,18 +44,39 @@
   --sidebar: oklch(0.98 0 0);              /* White */
   --sidebar-foreground: oklch(0.18 0 0);   /* Charcoal Gray */
   --sidebar-primary: oklch(0.42 0.05 200); /* Deep Teal */
-  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-primary-foreground: oklch(0.98 0 0); /* White */
+  --sidebar-border: oklch(0.85 0.01 80);    /* Soft Taupe */
+  --sidebar-accent: oklch(0.9 0.08 70);     /* Golden Peach */
+  --sidebar-accent-foreground: oklch(0.18 0 0); /* Charcoal Gray */
+  --sidebar-ring: oklch(0.42 0.05 200);     /* Deep Teal */
 }
 
 .dark {
+  /* Base Colors */
   --background: oklch(0.18 0 0);           /* Charcoal Gray */
   --foreground: oklch(0.95 0 0);           /* Off-White */
   --card: oklch(0.22 0 0);                 /* Darker Gray */
+  --card-foreground: oklch(0.95 0 0);      /* Off-White */
+  --popover: oklch(0.22 0 0);              /* Darker Gray */
+  --popover-foreground: oklch(0.95 0 0);   /* Off-White */
+  
+  /* Primary Colors */
   --primary: oklch(0.75 0.04 150);         /* Muted Mint */
   --primary-foreground: oklch(0.18 0 0);   /* Charcoal Gray */
+  
+  /* Secondary Colors */
   --secondary: oklch(0.8 0.12 40);         /* Warm Coral */
   --secondary-foreground: oklch(0.95 0 0); /* Off-White */
+  
+  /* Accents */
   --muted: oklch(0.25 0 0);                /* Dark Gray */
+  --muted-foreground: oklch(0.8 0 0);      /* Light Gray */
+  --accent: oklch(0.3 0.05 70);            /* Muted Peach */
+  --accent-foreground: oklch(0.98 0 0);    /* White */
+  --destructive: oklch(0.7 0.2 25);        /* Red */
+  --destructive-foreground: oklch(0.98 0 0); /* White */
+  
+  /* Neutrals */
   --border: oklch(0.3 0 0);                /* Medium Gray */
   --input: oklch(0.3 0 0);                 /* Medium Gray */
   --ring: oklch(0.75 0.04 150);            /* Muted Mint */
@@ -67,6 +91,12 @@
   /* Dark Sidebar */
   --sidebar: oklch(0.22 0 0);              /* Dark Gray */
   --sidebar-foreground: oklch(0.95 0 0);   /* Off-White */
+  --sidebar-primary: oklch(0.75 0.04 150); /* Muted Mint */
+  --sidebar-primary-foreground: oklch(0.18 0 0); /* Charcoal Gray */
+  --sidebar-border: oklch(0.3 0 0);        /* Medium Gray */
+  --sidebar-accent: oklch(0.3 0.05 70);    /* Muted Peach */
+  --sidebar-accent-foreground: oklch(0.98 0 0); /* White */
+  --sidebar-ring: oklch(0.75 0.04 150);    /* Muted Mint */
 }
 
 /* Radius adjustments for modern rounded look */
@@ -142,5 +172,48 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  
+  /* Force text colors based on theme */
+  .dark body, 
+  .dark .text-foreground,
+  .dark h1, 
+  .dark h2, 
+  .dark h3, 
+  .dark h4, 
+  .dark h5, 
+  .dark h6, 
+  .dark p, 
+  .dark span, 
+  .dark div, 
+  .dark li, 
+  .dark td {
+    color: var(--foreground);
+  }
+  
+  /* Additional contrasting text for interactive elements in dark mode */
+  .dark button:not([class*="text-"]),
+  .dark a:not([class*="text-"]),
+  .dark label:not([class*="text-"]) {
+    color: var(--foreground);
+  }
+  
+  /* Ensure form elements have proper contrast */
+  .dark input:not([type="checkbox"]):not([type="radio"]),
+  .dark textarea,
+  .dark select {
+    background-color: var(--background);
+    color: var(--foreground);
+    border-color: var(--border);
+  }
+  
+  /* Fix any contextual text elements */
+  .dark .text-muted-foreground {
+    color: var(--muted-foreground);
+  }
+  
+  .dark .card, 
+  .dark .card * {
+    color: var(--card-foreground);
   }
 }

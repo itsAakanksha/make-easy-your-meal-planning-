@@ -1,102 +1,108 @@
-import { Route, Switch } from "wouter";
-import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
-import { Toaster } from "sonner";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './hooks/use-auth.tsx'
+import { ClerkLoaded, ClerkLoading } from '@clerk/clerk-react'
 
-import { queryClient } from "./lib/queryClient";
-import { Sidebar } from "./components/sidebar";
-import { BottomNav } from "./components/navigation/bottom-nav";
-import { ThemeProvider } from "./components/ui/theme-provider";
+import { Toaster } from './components/ui/sonner'
+import AuthLayout from './components/layouts/AuthLayout'
 
-// Pages
-import Home from "./pages/home";
-import Recipes from "./pages/recipes";
-import Recipe from "./pages/recipe";
-import MealPlan from "./pages/meal-plan";
-import ShoppingList from "./pages/shopping-list";
-import Account from "./pages/account";
+// Layouts
+import AppLayout from './components/layouts/AppLayout'
 
-// Import CSS
-import "./App.css";
+// Public Pages
+import LandingPage from './pages/Landing'
+import SignInPage from './pages/auth/SignIn'
+import SignUpPage from './pages/auth/SignUp'
 
-// Route that requires authentication
+// Protected Pages
+import DashboardPage from './pages/Dashboard'
+import RecipesPage from './pages/Recipes'
+import MealPlanPage from './pages/MealPlan'
+
+import RecipeDetailPage from './pages/RecipeDetail'
+import PreferencesPage from './pages/Preferences'
+import ShoppingListPage from './pages/ShoppingList'
+
+// Protected Route Component using Clerk's best practices
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading } = useAuth()
+  
   return (
     <>
-      <SignedIn>{children}</SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
+      <ClerkLoading>
+        <div className="flex h-screen items-center justify-center">
+          <div className="animate-pulse text-primary">Loading authentication...</div>
+        </div>
+      </ClerkLoading>
+      
+      <ClerkLoaded>
+        {isLoading ? (
+          <div className="flex h-screen items-center justify-center">Loading...</div>
+        ) : !isAuthenticated ? (
+          <Navigate to="/signin" replace />
+        ) : (
+          <>{children}</>
+        )}
+      </ClerkLoaded>
     </>
-  );
-};
+  )
+}
+
+// Public Route Component (redirects to dashboard if already signed in)
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading } = useAuth()
+  
+  return (
+    <>
+      <ClerkLoading>
+        <div className="flex h-screen items-center justify-center">
+          <div className="animate-pulse text-primary">Loading authentication...</div>
+        </div>
+      </ClerkLoading>
+      
+      <ClerkLoaded>
+        {isLoading ? (
+          <div className="flex h-screen items-center justify-center">Loading...</div>
+        ) : isAuthenticated ? (
+          <Navigate to="/dashboard" replace />
+        ) : (
+          <>{children}</>
+        )}
+      </ClerkLoaded>
+    </>
+  )
+}
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="ai-meal-planner-theme">
-        <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-          {/* Sidebar - hidden on mobile */}
-          <div className="hidden md:block">
-            <Sidebar />
-          </div>
-
-          {/* Main content area */}
-          <main className="flex-1 overflow-auto">
-            <div className="container mx-auto px-4 py-4 min-h-screen">
-              <Switch>
-                <Route path="/" component={Home} />
-                
-                <Route path="/recipes">
-                  <ProtectedRoute>
-                    <Recipes />
-                  </ProtectedRoute>
-                </Route>
-                
-                <Route path="/recipes/:id">
-                  <ProtectedRoute>
-                    <Recipe />
-                  </ProtectedRoute>
-                </Route>
-                
-                {/* Add route for singular "recipe" URLs */}
-                <Route path="/recipe/:id">
-                  <ProtectedRoute>
-                    <Recipe />
-                  </ProtectedRoute>
-                </Route>
-                
-                <Route path="/meal-plan">
-                  <ProtectedRoute>
-                    <MealPlan />
-                  </ProtectedRoute>
-                </Route>
-                
-                <Route path="/shopping-list">
-                  <ProtectedRoute>
-                    <ShoppingList />
-                  </ProtectedRoute>
-                </Route>
-                
-                <Route path="/account">
-                  <ProtectedRoute>
-                    <Account />
-                  </ProtectedRoute>
-                </Route>
-                
-                <Route>404 Not Found</Route>
-              </Switch>
-            </div>
-          </main>
-
-          {/* Bottom Navigation - only shown on mobile */}
-          <BottomNav />
-        </div>
+    <>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
         
-        <Toaster richColors position="top-center" />
-      </ThemeProvider>
-    </QueryClientProvider>
-  );
+        {/* Auth Routes */}
+        <Route element={<AuthLayout />}>
+          <Route path="/signin" element={<SignInPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+        </Route>
+        
+        {/* Protected Routes */}
+        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/meal-plan" element={<MealPlanPage />} />
+          <Route path="/recipes" element={<RecipesPage />} />
+          <Route path="/recipes/:recipeId" element={<RecipeDetailPage />} />
+          <Route path="/preferences" element={<PreferencesPage />} />
+          <Route path="/shopping-list" element={<ShoppingListPage />} />
+        </Route>
+        
+        {/* Fallback Route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      
+      {/* Toast notifications */}
+      <Toaster position="top-right" closeButton />
+    </>
+  )
 }
 
-export default App;
+export default App

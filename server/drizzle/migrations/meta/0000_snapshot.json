@@ -1,9 +1,11 @@
 {
+  "id": "b59560ab-2306-4ac1-a175-7aa7e18df8d4",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.meal_plans": {
-      "name": "meal_plans",
+    "public.users": {
+      "name": "users",
       "schema": "",
       "columns": {
         "id": {
@@ -12,27 +14,34 @@
           "primaryKey": true,
           "notNull": true
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "date": {
-          "name": "date",
+        "email": {
+          "name": "email",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "name": {
-          "name": "name",
+        "auth_id": {
+          "name": "auth_id",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false
         },
-        "description": {
-          "name": "description",
-          "type": "text",
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "last_login_at": {
+          "name": "last_login_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
@@ -52,236 +61,34 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "meal_plans_user_id_users_id_fk": {
-          "name": "meal_plans_user_id_users_id_fk",
-          "tableFrom": "meal_plans",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
-    },
-    "public.meals": {
-      "name": "meals",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "meal_plan_id": {
-          "name": "meal_plan_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recipe_id": {
-          "name": "recipe_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "meal_type": {
-          "name": "meal_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "image_url": {
-          "name": "image_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ready_in_minutes": {
-          "name": "ready_in_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "servings": {
-          "name": "servings",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "meals_meal_plan_id_meal_plans_id_fk": {
-          "name": "meals_meal_plan_id_meal_plans_id_fk",
-          "tableFrom": "meals",
-          "columnsFrom": [
-            "meal_plan_id"
-          ],
-          "tableTo": "meal_plans",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
-    },
-    "public.recipe_cache": {
-      "name": "recipe_cache",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "data": {
-          "name": "data",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cached_at": {
-          "name": "cached_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
-    },
-    "public.shopping_list_items": {
-      "name": "shopping_list_items",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
+        "users_auth_id_unique": {
+          "name": "users_auth_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "auth_id"
+          ]
         },
-        "meal_plan_id": {
-          "name": "meal_plan_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "unit": {
-          "name": "unit",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "checked": {
-          "name": "checked",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+        "users_username_unique": {
+          "name": "users_username_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "username"
+          ]
         }
       },
-      "indexes": {},
-      "foreignKeys": {
-        "shopping_list_items_user_id_users_id_fk": {
-          "name": "shopping_list_items_user_id_users_id_fk",
-          "tableFrom": "shopping_list_items",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "shopping_list_items_meal_plan_id_meal_plans_id_fk": {
-          "name": "shopping_list_items_meal_plan_id_meal_plans_id_fk",
-          "tableFrom": "shopping_list_items",
-          "columnsFrom": [
-            "meal_plan_id"
-          ],
-          "tableTo": "meal_plans",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
     "public.user_profiles": {
       "name": "user_profiles",
@@ -299,97 +106,56 @@
           "primaryKey": false,
           "notNull": true
         },
-        "name": {
-          "name": "name",
+        "first_name": {
+          "name": "first_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_name": {
+          "name": "last_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bio": {
+          "name": "bio",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "email": {
-          "name": "email",
+        "avatar_url": {
+          "name": "avatar_url",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "diet": {
-          "name": "diet",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "allergies": {
-          "name": "allergies",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "dislikes": {
-          "name": "dislikes",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cuisine_preferences": {
-          "name": "cuisine_preferences",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "goal_type": {
-          "name": "goal_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "calorie_target": {
-          "name": "calorie_target",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "protein_target": {
-          "name": "protein_target",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "carb_target": {
-          "name": "carb_target",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fat_target": {
-          "name": "fat_target",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "meal_count": {
-          "name": "meal_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "default": 3
-        },
-        "budget_per_meal": {
-          "name": "budget_per_meal",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cooking_time": {
-          "name": "cooking_time",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "servings": {
-          "name": "servings",
+        "household_size": {
+          "name": "household_size",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "default": 1
+        },
+        "allow_notifications": {
+          "name": "allow_notifications",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "email_subscribed": {
+          "name": "email_subscribed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
         },
         "created_at": {
           "name": "created_at",
@@ -411,25 +177,33 @@
         "user_profiles_user_id_users_id_fk": {
           "name": "user_profiles_user_id_users_id_fk",
           "tableFrom": "user_profiles",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "user_profiles_user_id_unique": {
+          "name": "user_profiles_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id"
+          ]
+        }
+      },
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "public.users": {
-      "name": "users",
+    "public.user_preferences": {
+      "name": "user_preferences",
       "schema": "",
       "columns": {
         "id": {
@@ -438,11 +212,224 @@
           "primaryKey": true,
           "notNull": true
         },
-        "clerk_user_id": {
-          "name": "clerk_user_id",
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "diet": {
+          "name": "diet",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "allergies": {
+          "name": "allergies",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dislikes": {
+          "name": "dislikes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nutrition_goals": {
+          "name": "nutrition_goals",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_prep_time": {
+          "name": "max_prep_time",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cooking_skill_level": {
+          "name": "cooking_skill_level",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kitchen_equipment": {
+          "name": "kitchen_equipment",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "serving_sizes": {
+          "name": "serving_sizes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meal_distribution": {
+          "name": "meal_distribution",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meal_prep_preference": {
+          "name": "meal_prep_preference",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dark_mode": {
+          "name": "dark_mode",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "measurement_system": {
+          "name": "measurement_system",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'metric'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_preferences_user_id_users_id_fk": {
+          "name": "user_preferences_user_id_users_id_fk",
+          "tableFrom": "user_preferences",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_preferences_user_id_unique": {
+          "name": "user_preferences_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.recipe_embeddings": {
+      "name": "recipe_embeddings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "recipe_id": {
+          "name": "recipe_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ready_in_minutes": {
+          "name": "ready_in_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "servings": {
+          "name": "servings",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ingredients": {
+          "name": "ingredients",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "instructions": {
+          "name": "instructions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nutrition": {
+          "name": "nutrition",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cuisines": {
+          "name": "cuisines",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dish_types": {
+          "name": "dish_types",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "diets": {
+          "name": "diets",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "embedding": {
+          "name": "embedding",
+          "type": "real[]",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -463,30 +450,375 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "users_clerk_user_id_unique": {
-          "name": "users_clerk_user_id_unique",
+        "recipe_embeddings_recipe_id_unique": {
+          "name": "recipe_embeddings_recipe_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
-            "clerk_user_id"
-          ],
-          "nullsNotDistinct": false
+            "recipe_id"
+          ]
         }
       },
       "policies": {},
-      "isRLSEnabled": false,
-      "checkConstraints": {}
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.meal_plans": {
+      "name": "meal_plans",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plan_data": {
+          "name": "plan_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "generation_params": {
+          "name": "generation_params",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "meal_plans_user_id_users_id_fk": {
+          "name": "meal_plans_user_id_users_id_fk",
+          "tableFrom": "meal_plans",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.saved_recipes": {
+      "name": "saved_recipes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "spoonacular_id": {
+          "name": "spoonacular_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ready_in_minutes": {
+          "name": "ready_in_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "servings": {
+          "name": "servings",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_per_serving": {
+          "name": "price_per_serving",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recipe_data": {
+          "name": "recipe_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nutrition": {
+          "name": "nutrition",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_favorite": {
+          "name": "is_favorite",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "user_notes": {
+          "name": "user_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_rating": {
+          "name": "user_rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "user_recipe_idx": {
+          "name": "user_recipe_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "spoonacular_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "saved_recipes_user_id_users_id_fk": {
+          "name": "saved_recipes_user_id_users_id_fk",
+          "tableFrom": "saved_recipes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.shopping_lists": {
+      "name": "shopping_lists",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "meal_plan_id": {
+          "name": "meal_plan_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "items": {
+          "name": "items",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_archived": {
+          "name": "is_archived",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "shopping_lists_user_id_users_id_fk": {
+          "name": "shopping_lists_user_id_users_id_fk",
+          "tableFrom": "shopping_lists",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "shopping_lists_meal_plan_id_meal_plans_id_fk": {
+          "name": "shopping_lists_meal_plan_id_meal_plans_id_fk",
+          "tableFrom": "shopping_lists",
+          "tableTo": "meal_plans",
+          "columnsFrom": [
+            "meal_plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {},
   "schemas": {},
-  "_meta": {
-    "schemas": {},
-    "tables": {},
-    "columns": {}
-  },
-  "id": "874025d1-96dc-4b63-9504-fb221fd2b66b",
-  "prevId": "00000000-0000-0000-0000-000000000000",
   "sequences": {},
+  "roles": {},
   "policies": {},
   "views": {},
-  "roles": {}
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
 }

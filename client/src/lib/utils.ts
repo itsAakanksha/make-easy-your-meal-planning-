@@ -1,8 +1,120 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
+/**
+ * Combine class names with Tailwind CSS
+ */
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
+}
+
+/**
+ * Format a date string in a readable format
+ */
+export function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    return "Invalid date";
+  }
+  
+  // Format the date
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+}
+
+/**
+ * Format a date string with time
+ */
+export function formatDateTime(dateString: string): string {
+  const date = new Date(dateString);
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    return "Invalid date";
+  }
+  
+  // Format the date with time
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+  }).format(date);
+}
+
+/**
+ * Format a relative time (e.g., "2 days ago")
+ */
+export function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInMilliseconds = now.getTime() - date.getTime();
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    return "Invalid date";
+  }
+  
+  const diffInSeconds = Math.floor(diffInMilliseconds / 1000);
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  const diffInDays = Math.floor(diffInHours / 24);
+  
+  if (diffInSeconds < 60) {
+    return "Just now";
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes} ${diffInMinutes === 1 ? "minute" : "minutes"} ago`;
+  } else if (diffInHours < 24) {
+    return `${diffInHours} ${diffInHours === 1 ? "hour" : "hours"} ago`;
+  } else if (diffInDays < 7) {
+    return `${diffInDays} ${diffInDays === 1 ? "day" : "days"} ago`;
+  } else {
+    return formatDate(dateString);
+  }
+}
+
+/**
+ * Format a number as currency
+ */
+export function formatCurrency(amount: number, currency: string = "USD"): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(amount);
+}
+
+/**
+ * Truncate a string to a specified length and add ellipsis
+ */
+export function truncateString(str: string, maxLength: number = 100): string {
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength) + "...";
+}
+
+/**
+ * Capitalize the first letter of a string
+ */
+export function capitalizeFirstLetter(str: string): string {
+  if (!str || str.length === 0) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Slugify a string for use in URLs
+ */
+export function slugify(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "") // Remove special characters
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/--+/g, "-") // Replace multiple hyphens with single hyphen
+    .trim();
 }
 
 /**

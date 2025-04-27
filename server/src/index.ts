@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
 import path from 'path';
 import cors from 'cors';
+import router from './routes'; // Import our new modular router
 
 const app = express();
 app.use(cors({
@@ -42,38 +42,35 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Register API routes before static files
-(async () => {
-  // 1. Register routes first
-  const server = await registerRoutes(app);
+// Mount our modular API routes
+app.use('/api', router);
 
-  // 2. Add error handler AFTER routes
-  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    const status = 'status' in err ? (err as any).status : 500;
-    const message = err.message || "Internal Server Error";
-    
-    console.error(`[${new Date().toISOString()}] Error:`, err);
-    res.status(status).json({ message });
-  }); // Removed 'throw err' to prevent unhandled rejections
+// Add error handler AFTER routes
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  const status = 'status' in err ? (err as any).status : 500;
+  const message = err.message || "Internal Server Error";
+  
+  console.error(`[${new Date().toISOString()}] Error:`, err);
+  res.status(status).json({ message });
+}); 
 
-  // 3. Configure production setup LAST
-  if (process.env.NODE_ENV === 'production') {
-    const clientPath = path.resolve(__dirname, '../client/dist');
-    
-    // Serve static assets
-    app.use(express.static(clientPath));
-    
-    // Handle SPA routing
-    app.get('*', (req: Request, res: Response) => {
-      res.sendFile(path.join(clientPath, 'index.html'));
-    });
-  }
-
-  // 4. Start server with configured port
-  server.listen({ 
-    port: Number(port),
-    host: "0.0.0.0"
-  }, () => {
-    console.log(`Server running on port ${port}`);
+// Configure production setup LAST
+if (process.env.NODE_ENV === 'production') {
+  const clientPath = path.resolve(__dirname, '../../client/dist');
+  
+  // Serve static assets
+  app.use(express.static(clientPath));
+  
+  // Handle SPA routing
+  app.get('*', (req: Request, res: Response) => {
+    res.sendFile(path.join(clientPath, 'index.html'));
   });
-})();
+}
+
+// Start server
+const server = app.listen({ 
+  port: Number(port),
+  host: "0.0.0.0"
+}, () => {
+  console.log(`Server running on port ${port}`);
+});

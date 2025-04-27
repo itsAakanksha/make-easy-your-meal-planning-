@@ -1,170 +1,383 @@
-// filepath: e:\goldi\Projects\ai_meal_planner\client\src\pages\recipes.tsx
-import { useState, useEffect } from 'react';
-import { useApiClient } from '../lib/api/client';
-import { Link, useLocation } from 'wouter';
-import { ChefHat, Search, Plus, Clock } from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Card } from '../components/ui/card';
-import { toast } from 'sonner';
-import { RecipeCard } from '../components/recipe-card';
-import { Recipe } from '@/lib/spoonacular';
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { BookmarkIcon, ChefHatIcon, SearchIcon, SlidersIcon } from 'lucide-react'
 
-export default function RecipesPage() {
-  const apiClient = useApiClient();
-  const [isLoading, setIsLoading] = useState(true);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]);
-  const [, navigate] = useLocation();
+// UI Components
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { Slider } from '@/components/ui/slider'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { toast } from 'sonner'
 
-  // Fetch saved recipes
-  useEffect(() => {
-    const fetchRecipes = async () => {
-      try {
-        setIsLoading(true);
-        const response = await apiClient.getSavedRecipes();
-        
-        if (response.success && response.recipes) {
-          setRecipes(response.recipes);
-          setFilteredRecipes(response.recipes);
-        } else {
-          console.error('Failed to fetch recipes:', response);
-          toast.error('Failed to load recipes');
-          
-          // Fallback to empty array if no recipes found
-          setRecipes([]);
-          setFilteredRecipes([]);
-        }
-      } catch (error) {
-        console.error('Error fetching recipes:', error);
-        toast.error('Failed to load recipes');
-        setRecipes([]);
-        setFilteredRecipes([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+// Utils & Types
+import { cn, formatTime } from '@/lib/utils'
 
-    fetchRecipes();
-  }, [apiClient]);
+// Define recipe types
+interface Recipe {
+  id: number
+  title: string
+  image: string
+  readyInMinutes: number
+  servings: number
+  diets?: string[]
+}
 
-  // Filter recipes based on search query
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredRecipes(recipes);
-    } else {
-      const query = searchQuery.toLowerCase().trim();
-      const filtered = recipes.filter(recipe => 
-        recipe.title.toLowerCase().includes(query)
-      );
-      setFilteredRecipes(filtered);
+interface Nutrient {
+  name: string
+  amount: number
+  unit: string
+}
+
+interface SearchFilters {
+  query: string
+  diet?: string
+  cuisines?: string[]
+  excludeIngredients?: string[]
+  maxReadyTime?: number
+  minCalories?: number
+  maxCalories?: number
+}
+
+const Recipes = () => {
+  const navigate = useNavigate()
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState<SearchFilters>({
+    query: '',
+    maxReadyTime: 60,
+    minCalories: 0,
+    maxCalories: 1200
+  })
+
+  // Available diet options
+  const dietOptions = [
+    { value: '', label: 'Any' },
+    { value: 'gluten-free', label: 'Gluten Free' },
+    { value: 'ketogenic', label: 'Ketogenic' },
+    { value: 'vegetarian', label: 'Vegetarian' },
+    { value: 'vegan', label: 'Vegan' },
+    { value: 'paleo', label: 'Paleo' },
+    { value: 'whole30', label: 'Whole30' }
+  ]
+
+  // Cuisine options
+  const cuisineOptions = [
+    'African', 'American', 'British', 'Caribbean', 'Chinese', 'Eastern European', 
+    'French', 'Greek', 'Indian', 'Irish', 'Italian', 'Japanese', 'Korean', 
+    'Latin American', 'Mediterranean', 'Mexican', 'Middle Eastern', 'Nordic', 
+    'Spanish', 'Thai', 'Vietnamese'
+  ]
+
+  // Handle search input
+  const handleSearch = () => {
+    // Update filters with current search query
+    setFilters(prev => ({ ...prev, query: searchQuery }))
+  }
+
+  // Handle search on Enter key
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch()
     }
-  }, [searchQuery, recipes]);
+  }
+
+  // Query to fetch recipes
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['recipes', filters],
+    queryFn: async () => {
+      // Only send the request if there's a query
+      if (!filters.query) {
+        return { results: [] }
+      }
+
+      // Build query parameters for API request
+      const params = new URLSearchParams()
+      
+      // Add all filters to params
+      if (filters.query) params.append('query', filters.query)
+      if (filters.diet) params.append('diet', filters.diet)
+      if (filters.maxReadyTime) params.append('maxReadyTime', filters.maxReadyTime.toString())
+      if (filters.minCalories) params.append('minCalories', filters.minCalories.toString())
+      if (filters.maxCalories) params.append('maxCalories', filters.maxCalories.toString())
+      
+      // Add cuisine filters if any are selected
+      if (filters.cuisines && filters.cuisines.length > 0) {
+        filters.cuisines.forEach(cuisine => params.append('cuisines', cuisine))
+      }
+      
+      // Add excluded ingredients if any
+      if (filters.excludeIngredients && filters.excludeIngredients.length > 0) {
+        filters.excludeIngredients.forEach(ingredient => params.append('excludeIngredients', ingredient))
+      }
+      
+      try {
+        const response = await axios.get(`/api/recipes/search?${params.toString()}`)
+        return response.data
+      } catch (error) {
+        console.error('Error fetching recipes:', error)
+        throw new Error('Failed to fetch recipes')
+      }
+    },
+    enabled: Boolean(filters.query),
+  })
+
+  // Handle saving a recipe
+  const handleSaveRecipe = (recipe: Recipe) => {
+    // This would call an API to save the recipe to the user's account
+    toast.success(`Recipe "${recipe.title}" saved to your collection!`)
+  }
 
   return (
-    <div className="container max-w-7xl mx-auto py-8 px-4">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <ChefHat className="h-8 w-8 text-primary" />
-            My Recipes
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Browse and manage your saved recipes
-          </p>
-        </div>
-
-        <Link href="/recipe/new">
-          <Button className="flex items-center gap-2">
-            <Plus size={18} />
-            Add Recipe
-          </Button>
-        </Link>
-      </div>
-
-      {/* Search Bar */}
-      <div className="mb-8 max-w-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            type="text"
-            placeholder="Search recipes..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* Recipes Grid */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="overflow-hidden h-[300px] animate-pulse bg-muted" />
-          ))}
-        </div>
-      ) : filteredRecipes.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredRecipes.map(recipe => {
-            // Convert the recipe data format to match what RecipeCard expects
-            const recipeForCard: Recipe = {
-              id: recipe.id,
-              title: recipe.title,
-              image: recipe.image || '',
-              readyInMinutes: recipe.readyInMinutes || 0,
-              servings: recipe.servings || 0,
-              instructions: '',
-              nutrition: { nutrients: [] }
-            };
-            
-            return (
-              <div key={recipe.id}>
-                <RecipeCard 
-                  {...recipeForCard}
-                  isSaved={true}
-                  onClick={() => {
-                    // Use proper routing instead of direct window location
-                    navigate(`/recipe/${recipe.id}`);
-                  }}
-                  onSaveToggle={async () => {
-                    try {
-                      await apiClient.unsaveRecipe(recipe.id.toString());
-                      toast.success("Recipe removed from saved recipes");
-                      
-                      // Refresh the recipes list
-                      setRecipes(prev => prev.filter(r => r.id !== recipe.id));
-                      setFilteredRecipes(prev => prev.filter(r => r.id !== recipe.id));
-                    } catch (error) {
-                      console.error("Error removing recipe:", error);
-                      toast.error("Failed to remove recipe. Please try again.");
-                    }
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="bg-muted/30 p-4 rounded-full mb-4">
-            <Search className="h-8 w-8 text-muted-foreground" />
+    <div className="container mx-auto py-6 space-y-8">
+      <div className="flex flex-col space-y-4">
+        <h1 className="text-3xl font-bold">Recipes</h1>
+        <p className="text-muted-foreground">Search for recipes or browse by category</p>
+        
+        {/* Search and filter bar */}
+        <div className="flex items-center space-x-2">
+          <div className="relative flex-1">
+            <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search recipes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="pl-10"
+            />
           </div>
-          <h3 className="text-lg font-medium mb-2">No recipes found</h3>
-          <p className="text-muted-foreground text-center mb-6 max-w-md">
-            {searchQuery ? 
-              `No recipes matching "${searchQuery}"` : 
-              "You haven't saved any recipes yet"}
-          </p>
-          <Link href="/recipe/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Your First Recipe
-            </Button>
-          </Link>
+          
+          <Button onClick={handleSearch} variant="default">
+            Search
+          </Button>
+          
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline">
+                <SlidersIcon className="h-4 w-4 mr-2" />
+                Filters
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Recipe Filters</SheetTitle>
+                <SheetDescription>
+                  Refine your recipe search with these filters
+                </SheetDescription>
+              </SheetHeader>
+              
+              <div className="py-6 space-y-6">
+                {/* Diet filter */}
+                <div className="space-y-2">
+                  <Label htmlFor="diet">Diet</Label>
+                  <Select 
+                    value={filters.diet || ''}
+                    onValueChange={(value) => setFilters(prev => ({ ...prev, diet: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a diet" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dietOptions.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Separator />
+                
+                {/* Max cooking time filter */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label htmlFor="cooking-time">Max Cooking Time</Label>
+                    <span className="text-sm text-muted-foreground">
+                      {filters.maxReadyTime} minutes
+                    </span>
+                  </div>
+                  <Slider
+                    id="cooking-time"
+                    min={10}
+                    max={120}
+                    step={5}
+                    value={[filters.maxReadyTime || 60]}
+                    onValueChange={(value) => setFilters(prev => ({ ...prev, maxReadyTime: value[0] }))}
+                  />
+                </div>
+                
+                <Separator />
+                
+                {/* Calorie range filter */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label htmlFor="calories">Calorie Range</Label>
+                    <span className="text-sm text-muted-foreground">
+                      {filters.minCalories} - {filters.maxCalories} kcal
+                    </span>
+                  </div>
+                  <div className="pt-4">
+                    <Slider
+                      id="calories"
+                      min={0}
+                      max={2000}
+                      step={50}
+                      value={[filters.minCalories || 0, filters.maxCalories || 1200]}
+                      onValueChange={(value) => setFilters(prev => ({ 
+                        ...prev, 
+                        minCalories: value[0], 
+                        maxCalories: value[1]
+                      }))}
+                    />
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                {/* Cuisine filters (checkboxes) */}
+                <div className="space-y-2">
+                  <Label>Cuisines</Label>
+                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                    {cuisineOptions.map(cuisine => (
+                      <div key={cuisine} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`cuisine-${cuisine}`}
+                          checked={filters.cuisines?.includes(cuisine)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setFilters(prev => ({
+                                ...prev,
+                                cuisines: [...(prev.cuisines || []), cuisine]
+                              }))
+                            } else {
+                              setFilters(prev => ({
+                                ...prev,
+                                cuisines: prev.cuisines?.filter(c => c !== cuisine)
+                              }))
+                            }
+                          }}
+                        />
+                        <Label 
+                          htmlFor={`cuisine-${cuisine}`}
+                          className="text-sm font-normal"
+                        >
+                          {cuisine}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="pt-4 space-x-2">
+                  <Button onClick={handleSearch} className="w-full">
+                    Apply Filters
+                  </Button>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
-      )}
+      </div>
+      
+      {/* Recipe Results */}
+      <div>
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p>Searching for recipes...</p>
+          </div>
+        ) : isError ? (
+          <div className="text-center py-12 text-red-500">
+            <p>Error loading recipes. Please try again.</p>
+          </div>
+        ) : (
+          <>
+            {/* Show results count */}
+            {filters.query && (
+              <div className="mb-4">
+                <p className="text-muted-foreground">
+                  {data?.results?.length 
+                    ? `Found ${data.results.length} recipes for "${filters.query}"`
+                    : `No recipes found for "${filters.query}"`
+                  }
+                </p>
+              </div>
+            )}
+            
+            {/* Empty state */}
+            {!filters.query && (
+              <div className="text-center py-16 space-y-4">
+                <ChefHatIcon className="h-16 w-16 mx-auto text-muted-foreground" />
+                <h3 className="text-xl font-medium">Search for recipes</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Enter ingredients, dish names, or dietary preferences to find the perfect recipe
+                </p>
+              </div>
+            )}
+            
+            {/* Recipe grid */}
+            {data?.results?.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {data.results.map((recipe: Recipe) => (
+                  <Card key={recipe.id} className="overflow-hidden flex flex-col h-full">
+                    <div 
+                      className="h-48 bg-cover bg-center" 
+                      style={{ 
+                        backgroundImage: `url(${recipe.image})` 
+                      }}
+                    />
+                    <CardHeader className="pb-2">
+                      <CardTitle className="line-clamp-2">{recipe.title}</CardTitle>
+                      <CardDescription className="flex items-center gap-4">
+                        <span>Ready in {recipe.readyInMinutes} min</span>
+                        <span>Serves {recipe.servings}</span>
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      {recipe.diets?.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {recipe.diets.slice(0, 3).map(diet => (
+                            <Badge key={diet} variant="outline">
+                              {diet}
+                            </Badge>
+                          ))}
+                          {recipe.diets.length > 3 && (
+                            <Badge variant="outline">+{recipe.diets.length - 3} more</Badge>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                    <CardFooter className="flex justify-between">
+                      <Button 
+                        variant="default" 
+                        onClick={() => navigate(`/recipes/${recipe.id}`)}
+                      >
+                        View Details
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleSaveRecipe(recipe)}
+                      >
+                        <BookmarkIcon className="h-5 w-5" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
-  );
+  )
 }
+
+export default Recipes

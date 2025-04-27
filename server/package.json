@@ -7,16 +7,18 @@
     "dev": "ts-node src/index.ts",
     "build": "tsc",
     "migrate": "drizzle-kit push:pg",
-    "generate": "drizzle-kit generate:pg",
     "db:push": "npx drizzle-kit push",
-    "db:generate": "drizzle-kit generate:pg",
+    "db:generate": "drizzle-kit generate",
     "db:migrate": "ts-node setup-db.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:reset": "ts-node scripts/reset-db.ts",
+    "db:refresh": "ts-node scripts/refresh-db.ts"
   },
-  "dependencies": {
+  "dependencies": { 
     "@clerk/clerk-sdk-node": "^4.13.0",
     "@google/generative-ai": "^0.2.1",
     "@types/cors": "^2.8.17",
+    "axios": "^1.9.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.42.0",
