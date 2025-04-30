@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/use-auth.tsx'
 import { ClerkLoaded, ClerkLoading } from '@clerk/clerk-react'
+import { useState, useCallback, useEffect } from 'react'
 
 import { Toaster } from './components/ui/sonner'
 import AuthLayout from './components/layouts/AuthLayout'
@@ -24,7 +25,18 @@ import ShoppingListPage from './pages/ShoppingList'
 
 // Protected Route Component using Clerk's best practices
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, ensureUserRegistered } = useAuth()
+  const [isRegisteringUser, setIsRegisteringUser] = useState(false)
+  
+  // Effect to register user when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isRegisteringUser) {
+      setIsRegisteringUser(true)
+      ensureUserRegistered().finally(() => {
+        setIsRegisteringUser(false)
+      })
+    }
+  }, [isAuthenticated, ensureUserRegistered])
   
   return (
     <>
@@ -35,8 +47,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       </ClerkLoading>
       
       <ClerkLoaded>
-        {isLoading ? (
-          <div className="flex h-screen items-center justify-center">Loading...</div>
+        {isLoading || isRegisteringUser ? (
+          <div className="flex h-screen items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
+              <div>{isRegisteringUser ? 'Setting up your account...' : 'Loading...'}</div>
+            </div>
+          </div>
         ) : !isAuthenticated ? (
           <Navigate to="/signin" replace />
         ) : (
@@ -49,7 +66,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Public Route Component (redirects to dashboard if already signed in)
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, ensureUserRegistered } = useAuth()
+  const [isRegisteringUser, setIsRegisteringUser] = useState(false)
+  
+  // Effect to register user when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isRegisteringUser) {
+      setIsRegisteringUser(true)
+      ensureUserRegistered().finally(() => {
+        setIsRegisteringUser(false)
+      })
+    }
+  }, [isAuthenticated, ensureUserRegistered])
   
   return (
     <>
@@ -60,8 +88,13 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
       </ClerkLoading>
       
       <ClerkLoaded>
-        {isLoading ? (
-          <div className="flex h-screen items-center justify-center">Loading...</div>
+        {isLoading || isRegisteringUser ? (
+          <div className="flex h-screen items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
+              <div>{isRegisteringUser ? 'Setting up your account...' : 'Loading...'}</div>
+            </div>
+          </div>
         ) : isAuthenticated ? (
           <Navigate to="/dashboard" replace />
         ) : (

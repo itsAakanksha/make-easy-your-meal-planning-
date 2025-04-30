@@ -32,9 +32,9 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { useApiClient } from '@/lib/api/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Define the preferences schema
 const preferencesSchema = z.object({
@@ -55,9 +55,30 @@ const preferencesSchema = z.object({
 // Type for user preferences
 type UserPreferences = z.infer<typeof preferencesSchema>;
 
+// Backend response interface
+interface BackendPreferencesResponse {
+  id?: number;
+  userId?: number;
+  diet?: string | null;
+  allergies?: string[] | null;
+  dislikes?: string[] | null;
+  cuisinePreferences?: string[] | null;
+  goals?: {
+    targetCalories?: number;
+    targetProtein?: number;
+    targetCarbs?: number;
+    targetFat?: number;
+    goalType?: string;
+  } | null;
+  maxPrepTime?: number | null;
+  mealCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // Available diet options
 const dietOptions = [
-  { value: '', label: 'No specific diet' },
+  { value: 'none', label: 'No specific diet' }, // Changed empty string to 'none'
   { value: 'vegetarian', label: 'Vegetarian' },
   { value: 'vegan', label: 'Vegan' },
   { value: 'gluten-free', label: 'Gluten Free' },
@@ -77,6 +98,7 @@ const cuisineOptions = [
 
 const Preferences = () => {
   const apiClient = useApiClient();
+  const queryClient = useQueryClient();
   const [newAllergy, setNewAllergy] = useState('');
   const [newDislike, setNewDislike] = useState('');
   const [newCuisine, setNewCuisine] = useState('');
@@ -86,7 +108,7 @@ const Preferences = () => {
     resolver: zodResolver(preferencesSchema),
     defaultValues: {
       name: '',
-      diet: '',
+      diet: 'none', // Changed empty string to 'none'
       calorieTarget: 2000,
       proteinTarget: 100,
       carbTarget: 250,
@@ -102,43 +124,91 @@ const Preferences = () => {
   
   // Fetch user profile data
   const { isLoading } = useQuery({
-    queryKey: ['userProfile'],
+    queryKey: ['userPreferences'],
     queryFn: async () => {
       try {
-        const response = await apiClient.get<{ success: boolean, profile: UserPreferences }>('/profile');
+        const response = await apiClient.get<{ success: boolean, preferences: BackendPreferencesResponse }>('/users/preferences');
         
-        if (response.success && response.profile) {
-          // Update form with user profile data
-          Object.entries(response.profile).forEach(([key, value]) => {
+        if (response.success && response.preferences) {
+          // Transform backend data to frontend format
+          const backendPrefs = response.preferences;
+          const frontendPrefs: Partial<UserPreferences> = {
+            diet: backendPrefs.diet || 'none', // Changed empty string to 'none'
+            allergies: backendPrefs.allergies || [],
+            dislikes: backendPrefs.dislikes || [],
+            cuisinePreferences: backendPrefs.cuisinePreferences || [],
+            mealCount: backendPrefs.mealCount || 3,
+            // Map maxPrepTime to cookingTime
+            cookingTime: backendPrefs.maxPrepTime || 30,
+            // Default servings if not present
+            servings: 2,
+          };
+
+          // Handle nested goals object
+          if (backendPrefs.goals) {
+            frontendPrefs.calorieTarget = backendPrefs.goals.targetCalories;
+            frontendPrefs.proteinTarget = backendPrefs.goals.targetProtein;
+            frontendPrefs.carbTarget = backendPrefs.goals.targetCarbs;
+            frontendPrefs.fatTarget = backendPrefs.goals.targetFat;
+          }
+          
+          // Update form with transformed data
+          Object.entries(frontendPrefs).forEach(([key, value]) => {
             if (value !== undefined && value !== null) {
               form.setValue(key as keyof UserPreferences, value);
             }
           });
           
-          return response.profile;
+          console.log('Transformed preferences:', frontendPrefs);
+          return frontendPrefs;
         }
         
         return null;
       } catch (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('Error fetching user preferences:', error);
         toast.error('Failed to load your preferences');
         return null;
       }
     }
   });
   
-  // Handle form submission
-  const onSubmit = async (data: UserPreferences) => {
-    try {
-      // Make API call to update user preferences
-      await apiClient.put('/profile', data);
+  // Save preferences mutation
+  const savePreferencesMutation = useMutation({
+    mutationFn: (data: UserPreferences) => {
+      // Transform frontend data to backend format
+      const backendData: BackendPreferencesResponse = {
+        diet: data.diet === 'none' ? null : data.diet,
+        allergies: data.allergies,
+        dislikes: data.dislikes,
+        cuisinePreferences: data.cuisinePreferences,
+        mealCount: data.mealCount,
+        // Map cookingTime to maxPrepTime
+        maxPrepTime: data.cookingTime,
+        // Package nutrition targets into goals object
+        goals: {
+          targetCalories: data.calorieTarget,
+          targetProtein: data.proteinTarget,
+          targetCarbs: data.carbTarget,
+          targetFat: data.fatTarget,
+        }
+      };
       
-      // Show success message
+      console.log('Saving preferences:', backendData);
+      return apiClient.put('/users/preferences', backendData);
+    },
+    onSuccess: () => {
       toast.success('Preferences saved successfully');
-    } catch (error) {
+      queryClient.invalidateQueries({ queryKey: ['userPreferences'] });
+    },
+    onError: (error) => {
       console.error('Error saving preferences:', error);
       toast.error('Failed to save preferences');
     }
+  });
+  
+  // Handle form submission
+  const onSubmit = (data: UserPreferences) => {
+    savePreferencesMutation.mutate(data);
   };
   
   // Add new allergy
@@ -264,6 +334,7 @@ const Preferences = () => {
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -473,7 +544,7 @@ const Preferences = () => {
                             step={5}
                             value={[field.value || 250]}
                             onValueChange={(vals) => field.onChange(vals[0])}
-                          />
+                        />
                         </div>
                         <div className="w-12 text-right font-medium">
                           {field.value}g
@@ -609,8 +680,19 @@ const Preferences = () => {
           
           {/* Save Button */}
           <div className="flex justify-end">
-            <Button type="submit" size="lg">
-              Save Preferences
+            <Button 
+              type="submit" 
+              size="lg"
+              disabled={savePreferencesMutation.isPending}
+            >
+              {savePreferencesMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Preferences'
+              )}
             </Button>
           </div>
         </form>

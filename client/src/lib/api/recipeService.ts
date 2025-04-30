@@ -2,7 +2,8 @@ import apiClient from "./apiClient";
 import {
   Recipe,
   RecipesResponse,
-  SearchRecipesParams
+  SearchRecipesParams,
+  NaturalLanguageSearchParams
 } from "./types";
 
 class RecipeService {
@@ -11,6 +12,18 @@ class RecipeService {
    */
   async searchRecipes(params: SearchRecipesParams = {}): Promise<RecipesResponse> {
     return apiClient.get<RecipesResponse>("/recipes/search", { params });
+  }
+  
+  /**
+   * Search for recipes with natural language query
+   * This allows users to search in conversational language
+   */
+  async searchRecipesNaturalLanguage(query: string, limit: number = 20): Promise<RecipesResponse> {
+    const params: NaturalLanguageSearchParams = {
+      q: query,
+      number: limit
+    };
+    return apiClient.get<RecipesResponse>("/recipes/search/natural", { params });
   }
   
   /**

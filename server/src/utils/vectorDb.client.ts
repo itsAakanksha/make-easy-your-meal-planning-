@@ -9,6 +9,9 @@ import { ApiError } from './error.classes';
 // Initialize PostgreSQL connection pool
 let pgPool: Pool | null = null;
 
+// Gemini's embedding-001 model produces 768-dimensional vectors
+const EMBEDDING_DIMENSION = 768;
+
 /**
  * Ensure PostgreSQL client is initialized
  */
@@ -29,22 +32,50 @@ async function ensureClient(): Promise<Pool> {
         // Create the extension if it doesn't exist
         await client.query('CREATE EXTENSION IF NOT EXISTS vector');
         
-        // Create the recipes table with vector support if it doesn't exist
+        // First, check if the recipe_embeddings table exists
+        const tableExists = await client.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public'
+            AND table_name = 'recipe_embeddings'
+          );
+        `);
+        
+        // If the table exists, we need to check if its schema is compatible with our embedding dimension
+        if (tableExists.rows[0].exists) {
+          try {
+            // Try to drop the old indexes first to prevent conflicts
+            await client.query(`DROP INDEX IF EXISTS recipe_embeddings_vector_idx;`);
+            
+            // Drop the old table to recreate it with the new dimension
+            console.log(`Table recipe_embeddings exists. Dropping and recreating with dimension ${EMBEDDING_DIMENSION}...`);
+            await client.query(`DROP TABLE recipe_embeddings;`);
+          } catch (dropError) {
+            console.error('Error dropping existing table:', dropError);
+            // Continue anyway, as the table might not exist
+          }
+        }
+        
+        // Create the recipes table with vector support
+        console.log(`Creating recipe_embeddings table with dimension ${EMBEDDING_DIMENSION}...`);
         await client.query(`
           CREATE TABLE IF NOT EXISTS recipe_embeddings (
             id TEXT PRIMARY KEY,
-            embedding vector(1536),
+            embedding vector(${EMBEDDING_DIMENSION}),
             metadata JSONB
           );
         `);
         
         // Create an index for efficient vector search
+        console.log('Creating vector index...');
         await client.query(`
           CREATE INDEX IF NOT EXISTS recipe_embeddings_vector_idx 
           ON recipe_embeddings 
           USING ivfflat (embedding vector_cosine_ops)
           WITH (lists = 100);
         `);
+        
+        console.log('Vector database setup complete!');
       } finally {
         client.release();
       }

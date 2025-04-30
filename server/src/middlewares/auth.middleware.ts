@@ -5,7 +5,6 @@ import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { ApiError } from '../utils/error.classes';
 
-
 // Define a unified interface for Request auth
 declare global {
   namespace Express {
@@ -67,13 +66,15 @@ export const optionalAuth = ClerkExpressWithAuth({
 export const resolveUserId = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth?.userId) {
+      console.log('🔒 Auth Middleware: No userId found in request');
       return next(new ApiError('User not authenticated', 401));
     }
 
     const clerkUserId = req.auth.userId;
+    console.log(`🔍 Auth Middleware: Resolving user ID for Clerk user: ${clerkUserId}`);
     
     // Find the internal user ID based on the Clerk ID using Drizzle ORM
-    const userResult = await db.select({ id: users.id })
+    const userResult = await db.select({ id: users.id, email: users.email })
       .from(users)
       .where(eq(users.clerkUserId, clerkUserId))
       .limit(1);
@@ -81,38 +82,116 @@ export const resolveUserId = async (req: Request, res: Response, next: NextFunct
     if (userResult.length > 0) {
       // Add the internal user ID to the request auth object
       req.auth.internalUserId = userResult[0].id;
+      req.auth.email = userResult[0].email;
+      console.log(`✅ Auth Middleware: Found existing user with internal ID: ${userResult[0].id}, email: ${userResult[0].email}`);
+      next();
+      return;
     } else {
       // User exists in authentication system but not in our database
       // This could happen in legitimate cases, so try to auto-provision
       try {
-        // Get user email from Clerk or use a placeholder
-        const email = req.auth.email || `${clerkUserId}@example.com`;
+        // Import clerk SDK to get user details
+        const { users: clerkUsers } = require('@clerk/clerk-sdk-node');
         
-        // Attempt to create the user in our database
-        const [newUser] = await db.insert(users)
-          .values({
-            clerkUserId,
-            email, // Add the required email field
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning({ id: users.id });
-          
-        if (newUser?.id) {
-          req.auth.internalUserId = newUser.id;
-          next();
-          return;
+        console.log(`🆕 Auth Middleware: User not found in database, attempting to provision: ${clerkUserId}`);
+        
+        // Get user details from Clerk
+        console.log(`📡 Auth Middleware: Fetching user details from Clerk for ${clerkUserId}`);
+        const clerkUser = await clerkUsers.getUser(clerkUserId);
+        console.log(`📋 Auth Middleware: Received Clerk user details: ${JSON.stringify({
+          id: clerkUser.id,
+          emailCount: clerkUser.emailAddresses?.length || 0,
+          primaryEmailId: clerkUser.primaryEmailAddressId
+        })}`);
+        
+        // Get primary email address
+        let email = null;
+        if (clerkUser && clerkUser.emailAddresses && clerkUser.emailAddresses.length > 0) {
+          const primaryEmail = clerkUser.emailAddresses.find((e: { id: string }) => e.id === clerkUser.primaryEmailAddressId);
+          email = primaryEmail ? primaryEmail.emailAddress : clerkUser.emailAddresses[0].emailAddress;
+          console.log(`📧 Auth Middleware: Found email for user: ${email}`);
         }
-      } catch (provisionError) {
-        console.error('Failed to auto-provision user:', provisionError);
+        
+        // Fallback if no email found
+        if (!email) {
+          email = `user_${clerkUserId}@example.com`;
+          console.warn(`⚠️ Auth Middleware: No email found for Clerk user ${clerkUserId}, using placeholder: ${email}`);
+        }
+        
+        console.log(`🔄 Auth Middleware: Provisioning new user with Clerk ID: ${clerkUserId} and email: ${email}`);
+        
+        // Use a transaction to ensure all related records are created
+        console.log(`🔄 Auth Middleware: Starting database transaction to create user records`);
+        const newUser = await db.transaction(async (tx) => {
+          // Create user record
+          console.log(`📝 Auth Middleware: Creating user record for ${clerkUserId}`);
+          const [createdUser] = await tx.insert(users)
+            .values({
+              clerkUserId,
+              email,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            })
+            .returning({ id: users.id, email: users.email });
+          
+          if (!createdUser) {
+            console.error(`❌ Auth Middleware: Failed to create user record in database for ${clerkUserId}`);
+            throw new Error('Failed to create user record in database');
+          }
+          
+          console.log(`✅ Auth Middleware: User record created with ID: ${createdUser.id}`);
+          
+          // Create user profile
+          console.log(`📝 Auth Middleware: Creating user profile for internal user ID: ${createdUser.id}`);
+          const { userProfiles } = await import('../db/schema');
+          await tx.insert(userProfiles)
+            .values({
+              userId: createdUser.id,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+          
+          // Create user preferences with defaults
+          console.log(`📝 Auth Middleware: Creating user preferences for internal user ID: ${createdUser.id}`);
+          const { userPreferences } = await import('../db/schema');
+          await tx.insert(userPreferences)
+            .values({
+              userId: createdUser.id,
+              diet: null,
+              allergies: [],
+              dislikes: [],
+              cuisinePreferences: [],
+              goals: {
+                targetCalories: 2000,
+                targetProtein: 100,
+                targetCarbs: 250,
+                targetFat: 70
+              },
+              mealCount: 3,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+          
+          return createdUser;
+        });
+        
+        // Add to auth object
+        req.auth.internalUserId = newUser.id;
+        req.auth.email = newUser.email;
+        
+        console.log(`🎉 Auth Middleware: Successfully created user ${clerkUserId} with internal ID ${newUser.id}`);
+        next();
+        return;
+      } catch (provisionError: unknown) {
+        console.error(`❌ Auth Middleware: Failed to auto-provision user:`, provisionError);
+        const errorMessage = provisionError instanceof Error 
+          ? provisionError.message 
+          : 'Unknown error during user provisioning';
+        return next(new ApiError(`Failed to provision user account: ${errorMessage}`, 500));
       }
-      
-      return next(new ApiError('User not found in system', 404));
     }
-    
-    next();
   } catch (error) {
-    console.error('Error resolving user ID:', error);
+    console.error(`❌ Auth Middleware: Error resolving user ID:`, error);
     next(error);
   }
 };

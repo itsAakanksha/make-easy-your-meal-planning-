@@ -4,99 +4,99 @@
 
 @custom-variant dark (&:is(.dark *));
 :root {
-  /* Base Colors */
-  --background: oklch(0.97 0 0);           /* Warm Off-White #F8F5F2 */
-  --foreground: oklch(0.18 0 0);           /* Charcoal Gray #2D3439 */
-  --card: oklch(0.97 0 0);                 /* Warm Off-White */
-  --card-foreground: oklch(0.18 0 0);      /* Charcoal Gray */
-  --popover: oklch(0.97 0 0);              /* Warm Off-White */
-  --popover-foreground: oklch(0.18 0 0);   /* Charcoal Gray */
+  /* Fresh Vitality Color Theme - Light Mode */
+  --background: #F9F9F9;                /* Eggshell White */
+  --foreground: #2D2D2D;                /* Charcoal Gray */
+  --card: #FFFFFF;                      /* Pure White for cards */
+  --card-foreground: #2D2D2D;           /* Charcoal Gray */
+  --popover: #FFFFFF;                   /* Pure White */
+  --popover-foreground: #2D2D2D;        /* Charcoal Gray */
   
-  /* Primary (Deep Teal) */
-  --primary: oklch(0.42 0.05 200);         /* #2B6D6D */
-  --primary-foreground: oklch(0.98 0 0);   /* White */
+  /* Primary (Soft Green) */
+  --primary: #7BC47F;                   /* Soft Green - freshness, health */
+  --primary-foreground: #FFFFFF;        /* White */
   
   /* Secondary (Warm Coral) */
-  --secondary: oklch(0.8 0.12 40);         /* #FF7F5C */
-  --secondary-foreground: oklch(0.18 0 0); /* Charcoal Gray */
+  --secondary: #FF6B6B;                 /* Warm Coral - actions, highlights */
+  --secondary-foreground: #FFFFFF;      /* White */
   
   /* Accents */
-  --muted: oklch(0.85 0.03 160);           /* Soft Sage #8AA39B */
-  --muted-foreground: oklch(0.4 0 0);      /* Medium Gray for text */
-  --accent: oklch(0.9 0.08 70);            /* Golden Peach #FFD8B1 */
-  --accent-foreground: oklch(0.18 0 0);    /* Charcoal Gray */
-  --destructive: oklch(0.7 0.2 25);        /* Adjusted for accessibility */
-  --destructive-foreground: oklch(0.98 0 0); /* White */
+  --muted: #ECECEC;                     /* Soft Gray - dividers, cards */
+  --muted-foreground: #9AA5B1;          /* Ash Gray - labels, descriptions */
+  --accent: #FFE156;                    /* Soft Mustard - energetic callouts */
+  --accent-foreground: #2D2D2D;         /* Charcoal Gray */
+  --destructive: #FF4242;               /* Bright Red - warnings */
+  --destructive-foreground: #FFFFFF;    /* White */
   
   /* Neutrals */
-  --border: oklch(0.85 0.01 80);           /* Soft Taupe #D3CEC4 */
-  --input: oklch(0.85 0.01 80);            /* Soft Taupe */
-  --ring: oklch(0.42 0.05 200);            /* Deep Teal */
+  --border: #ECECEC;                    /* Soft Gray */
+  --input: #ECECEC;                     /* Soft Gray */
+  --ring: #7BC47F;                      /* Soft Green */
   
   /* Chart Colors */
-  --chart-1: oklch(0.42 0.05 200);         /* Deep Teal */
-  --chart-2: oklch(0.8 0.12 40);           /* Warm Coral */
-  --chart-3: oklch(0.7 0.03 160);          /* Soft Sage */
-  --chart-4: oklch(0.9 0.08 70);           /* Golden Peach */
-  --chart-5: oklch(0.75 0.04 150);         /* Muted Mint */
+  --chart-1: #7BC47F;                   /* Soft Green */
+  --chart-2: #FF6B6B;                   /* Warm Coral */
+  --chart-3: #4ABDAC;                   /* Cool Teal */
+  --chart-4: #FFE156;                   /* Soft Mustard */
+  --chart-5: #9AA5B1;                   /* Ash Gray */
   
   /* Sidebar */
-  --sidebar: oklch(0.98 0 0);              /* White */
-  --sidebar-foreground: oklch(0.18 0 0);   /* Charcoal Gray */
-  --sidebar-primary: oklch(0.42 0.05 200); /* Deep Teal */
-  --sidebar-primary-foreground: oklch(0.98 0 0); /* White */
-  --sidebar-border: oklch(0.85 0.01 80);    /* Soft Taupe */
-  --sidebar-accent: oklch(0.9 0.08 70);     /* Golden Peach */
-  --sidebar-accent-foreground: oklch(0.18 0 0); /* Charcoal Gray */
-  --sidebar-ring: oklch(0.42 0.05 200);     /* Deep Teal */
+  --sidebar: #FFFFFF;                   /* White */
+  --sidebar-foreground: #2D2D2D;        /* Charcoal Gray */
+  --sidebar-primary: #7BC47F;           /* Soft Green */
+  --sidebar-primary-foreground: #FFFFFF; /* White */
+  --sidebar-border: #ECECEC;            /* Soft Gray */
+  --sidebar-accent: #4ABDAC;            /* Cool Teal */
+  --sidebar-accent-foreground: #FFFFFF; /* White */
+  --sidebar-ring: #7BC47F;              /* Soft Green */
 }
 
 .dark {
-  /* Base Colors */
-  --background: oklch(0.18 0 0);           /* Charcoal Gray */
-  --foreground: oklch(0.95 0 0);           /* Off-White */
-  --card: oklch(0.22 0 0);                 /* Darker Gray */
-  --card-foreground: oklch(0.95 0 0);      /* Off-White */
-  --popover: oklch(0.22 0 0);              /* Darker Gray */
-  --popover-foreground: oklch(0.95 0 0);   /* Off-White */
+  /* Fresh Vitality Color Theme - Dark Mode */
+  --background: #1A1A1A;                /* Dark Background */
+  --foreground: #F9F9F9;                /* Eggshell White */
+  --card: #252525;                      /* Slightly lighter dark */
+  --card-foreground: #F9F9F9;           /* Eggshell White */
+  --popover: #252525;                   /* Slightly lighter dark */
+  --popover-foreground: #F9F9F9;        /* Eggshell White */
   
   /* Primary Colors */
-  --primary: oklch(0.75 0.04 150);         /* Muted Mint */
-  --primary-foreground: oklch(0.18 0 0);   /* Charcoal Gray */
+  --primary: #65A469;                   /* Darker Soft Green */
+  --primary-foreground: #FFFFFF;        /* White */
   
   /* Secondary Colors */
-  --secondary: oklch(0.8 0.12 40);         /* Warm Coral */
-  --secondary-foreground: oklch(0.95 0 0); /* Off-White */
+  --secondary: #E55C5C;                 /* Darker Warm Coral */
+  --secondary-foreground: #FFFFFF;      /* White */
   
   /* Accents */
-  --muted: oklch(0.25 0 0);                /* Dark Gray */
-  --muted-foreground: oklch(0.8 0 0);      /* Light Gray */
-  --accent: oklch(0.3 0.05 70);            /* Muted Peach */
-  --accent-foreground: oklch(0.98 0 0);    /* White */
-  --destructive: oklch(0.7 0.2 25);        /* Red */
-  --destructive-foreground: oklch(0.98 0 0); /* White */
+  --muted: #313131;                     /* Dark Gray */
+  --muted-foreground: #ACACAC;          /* Light Gray */
+  --accent: #D4BC48;                    /* Darker Soft Mustard */
+  --accent-foreground: #FFFFFF;         /* White */
+  --destructive: #E03131;               /* Darker Red */
+  --destructive-foreground: #FFFFFF;    /* White */
   
   /* Neutrals */
-  --border: oklch(0.3 0 0);                /* Medium Gray */
-  --input: oklch(0.3 0 0);                 /* Medium Gray */
-  --ring: oklch(0.75 0.04 150);            /* Muted Mint */
+  --border: #3A3A3A;                    /* Medium Dark Gray */
+  --input: #3A3A3A;                     /* Medium Dark Gray */
+  --ring: #65A469;                      /* Darker Soft Green */
   
   /* Dark Mode Chart Colors */
-  --chart-1: oklch(0.75 0.04 150);         /* Muted Mint */
-  --chart-2: oklch(0.8 0.12 40);           /* Warm Coral */
-  --chart-3: oklch(0.42 0.05 200);         /* Deep Teal */
-  --chart-4: oklch(0.9 0.08 70);           /* Golden Peach */
-  --chart-5: oklch(0.7 0.03 160);          /* Soft Sage */
+  --chart-1: #65A469;                   /* Darker Soft Green */
+  --chart-2: #E55C5C;                   /* Darker Warm Coral */
+  --chart-3: #3D9991;                   /* Darker Cool Teal */
+  --chart-4: #D4BC48;                   /* Darker Soft Mustard */
+  --chart-5: #828A94;                   /* Darker Ash Gray */
   
   /* Dark Sidebar */
-  --sidebar: oklch(0.22 0 0);              /* Dark Gray */
-  --sidebar-foreground: oklch(0.95 0 0);   /* Off-White */
-  --sidebar-primary: oklch(0.75 0.04 150); /* Muted Mint */
-  --sidebar-primary-foreground: oklch(0.18 0 0); /* Charcoal Gray */
-  --sidebar-border: oklch(0.3 0 0);        /* Medium Gray */
-  --sidebar-accent: oklch(0.3 0.05 70);    /* Muted Peach */
-  --sidebar-accent-foreground: oklch(0.98 0 0); /* White */
-  --sidebar-ring: oklch(0.75 0.04 150);    /* Muted Mint */
+  --sidebar: #252525;                   /* Slightly lighter dark */
+  --sidebar-foreground: #F9F9F9;        /* Eggshell White */
+  --sidebar-primary: #65A469;           /* Darker Soft Green */
+  --sidebar-primary-foreground: #FFFFFF; /* White */
+  --sidebar-border: #3A3A3A;            /* Medium Dark Gray */
+  --sidebar-accent: #3D9991;            /* Darker Cool Teal */
+  --sidebar-accent-foreground: #FFFFFF; /* White */
+  --sidebar-ring: #65A469;              /* Darker Soft Green */
 }
 
 /* Radius adjustments for modern rounded look */

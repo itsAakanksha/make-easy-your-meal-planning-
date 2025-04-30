@@ -6,39 +6,77 @@ import { Button } from '../components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { CalendarDays, ChefHat, Sparkles, ShoppingCart, ArrowRight } from 'lucide-react'
 import { formatDate } from '../lib/utils'
-
-// This would come from an API in a real implementation
-const mockTodaysMeals = [
-  {
-    id: '1',
-    type: 'breakfast',
-    title: 'Greek Yogurt with Berries and Honey',
-    imageUrl: 'https://images.unsplash.com/photo-1551240099-3b6ded39d148?w=600',
-    prepTime: 5,
-    calories: 320
-  },
-  {
-    id: '2',
-    type: 'lunch',
-    title: 'Mediterranean Quinoa Salad',
-    imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600',
-    prepTime: 15,
-    calories: 420
-  },
-  {
-    id: '3',
-    type: 'dinner',
-    title: 'Baked Salmon with Asparagus',
-    imageUrl: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=600',
-    prepTime: 25,
-    calories: 520
-  },
-]
+import { useQuery } from '@tanstack/react-query'
+import { getSavedRecipes } from '../lib/spoonacular'
+import { Meal, MealPlan } from '../lib/spoonacular'
+import { Skeleton } from '../components/ui/skeleton'
+import { useApiClient } from '@/lib/api/client'
 
 export default function Dashboard() {
   const { user } = useAuth()
   const [greeting, setGreeting] = useState('Good day')
+  const apiClient = useApiClient()
   const today = new Date()
+  const formattedToday = formatDate(today.toString())
+  
+  // Format date to string (YYYY-MM-DD) - ensuring consistency with meal plan component
+  const formatDateString = (date: Date): string => {
+    return date.toISOString().split('T')[0];
+  };
+  
+  // Fetch today's meal plan directly using the same endpoint as the MealPlan component
+  const { data: todaysMealPlanData, isLoading: isMealPlansLoading } = useQuery({
+    queryKey: ['mealPlan', formatDateString(today)],
+    queryFn: async () => {
+      const dateStr = formatDateString(today);
+      console.log("Dashboard - Fetching meal plans for today:", dateStr);
+      
+      // Use the same endpoint that works in the MealPlan component
+      const response = await apiClient.get<{ success: boolean, date: string, mealPlans?: any[] }>(`/mealplans/date/${dateStr}`);
+      console.log("Dashboard - Got response for today's meal plan:", response);
+      
+      if (response.success && response.mealPlans && response.mealPlans.length > 0) {
+        // Take the most recent meal plan if multiple exist
+        const mostRecentPlan = response.mealPlans.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )[0];
+        
+        console.log("Dashboard - Found meal plan for today:", mostRecentPlan);
+        
+        // Check if we have meals in the meals property or mealsForRequestedDate property
+        let mealsArray = [];
+        
+        if (mostRecentPlan.meals && mostRecentPlan.meals.length > 0) {
+          mealsArray = mostRecentPlan.meals;
+        } else if (mostRecentPlan.mealsForRequestedDate && mostRecentPlan.mealsForRequestedDate.length > 0) {
+          mealsArray = mostRecentPlan.mealsForRequestedDate;
+        }
+        
+        return {
+          id: mostRecentPlan.id,
+          date: dateStr,
+          meals: mealsArray
+        };
+      }
+      
+      // If no meal plan exists for today, return a default structure
+      return {
+        id: 0,
+        date: dateStr,
+        meals: []
+      };
+    }
+  });
+
+  // Format meals for display
+  const todaysMeals = todaysMealPlanData?.meals?.map(meal => ({
+    id: meal.id.toString(),
+    type: meal.mealType,
+    title: meal.title,
+    imageUrl: meal.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600',
+    prepTime: meal.readyInMinutes || 0,
+    calories: 0 // We'll need to fetch this separately if needed
+  })) || [];
   
   // Update greeting based on time of day
   useEffect(() => {
@@ -56,47 +94,79 @@ export default function Dashboard() {
             {greeting}, {user?.firstName || 'there'} 👋
           </h1>
           <p className="text-muted-foreground">
-            Here's your meal plan for today, {formatDate(today.toString())}
+            Here's your meal plan for today, {formattedToday}
           </p>
         </div>
         
-        <div className="grid gap-4 md:grid-cols-3">
-          {mockTodaysMeals.map((meal) => (
-            <Card key={meal.id} className="overflow-hidden">
-              <div className="aspect-video w-full overflow-hidden">
-                <img 
-                  src={meal.imageUrl} 
-                  alt={meal.title} 
-                  className="h-full w-full object-cover transition-transform hover:scale-105"
-                />
-              </div>
-              <CardHeader className="py-3">
-                <CardTitle className="capitalize text-lg">
-                  {meal.type}
-                </CardTitle>
-                <CardDescription className="line-clamp-1">
-                  {meal.title}
-                </CardDescription>
-              </CardHeader>
-              <CardFooter className="justify-between border-t p-3 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <ChefHat size={12} />
-                  <span>{meal.prepTime} mins</span>
+        {isMealPlansLoading ? (
+          // Loading state
+          <div className="grid gap-4 md:grid-cols-3">
+            {[1, 2, 3].map(i => (
+              <Card key={i} className="overflow-hidden">
+                <div className="aspect-video w-full">
+                  <Skeleton className="h-full w-full" />
                 </div>
-                <div>~{meal.calories} kcal</div>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                <CardHeader className="py-3">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-full" />
+                </CardHeader>
+                <CardFooter className="justify-between border-t p-3">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-3 w-16" />
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : todaysMeals.length > 0 ? (
+          // Meal plan exists for today
+          <div className="grid gap-4 md:grid-cols-3">
+            {todaysMeals.map((meal) => (
+              <Card key={meal.id} className="overflow-hidden">
+                <div className="aspect-video w-full overflow-hidden">
+                  <img 
+                    src={meal.imageUrl} 
+                    alt={meal.title} 
+                    className="h-full w-full object-cover transition-transform hover:scale-105"
+                  />
+                </div>
+                <CardHeader className="py-3">
+                  <CardTitle className="capitalize text-lg">
+                    {meal.type}
+                  </CardTitle>
+                  <CardDescription className="line-clamp-1">
+                    {meal.title}
+                  </CardDescription>
+                </CardHeader>
+                <CardFooter className="justify-between border-t p-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <ChefHat size={12} />
+                    <span>{meal.prepTime} mins</span>
+                  </div>
+                  <div>~{meal.calories} kcal</div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          // No meal plan for today
+          <Card className="p-6 text-center">
+            <p className="mb-4 text-muted-foreground">You don't have a meal plan for today.</p>
+            <Button asChild>
+              <Link to="/meal-plan">Create a Meal Plan</Link>
+            </Button>
+          </Card>
+        )}
         
-        <div className="flex justify-end">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/meal-plan" className="flex items-center gap-1">
-              View full meal plan
-              <ArrowRight size={16} />
-            </Link>
-          </Button>
-        </div>
+        {todaysMeals.length > 0 && (
+          <div className="flex justify-end">
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/meal-plan" className="flex items-center gap-1">
+                View full meal plan
+                <ArrowRight size={16} />
+              </Link>
+            </Button>
+          </div>
+        )}
       </section>
 
       <section>

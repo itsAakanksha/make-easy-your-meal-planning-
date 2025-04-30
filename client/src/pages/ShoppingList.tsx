@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '@/lib/api/client';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Check, 
   Trash2, 
@@ -9,7 +10,8 @@ import {
   PenLine,
   CircleCheck,
   Circle,
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,45 +41,317 @@ interface GroupedItems {
   [key: string]: ShoppingListItem[];
 }
 
+// Dummy data for shopping list
+const DUMMY_SHOPPING_LIST: ShoppingListItem[] = [
+  {
+    id: 1,
+    name: "Chicken breast",
+    quantity: 2,
+    unit: "lb",
+    aisle: "Meat & Seafood",
+    isChecked: false,
+    recipeId: 101,
+    recipeName: "Chicken Stir Fry"
+  },
+  {
+    id: 2,
+    name: "Broccoli",
+    quantity: 1,
+    unit: "head",
+    aisle: "Produce",
+    isChecked: false,
+    recipeId: 101,
+    recipeName: "Chicken Stir Fry"
+  },
+  {
+    id: 3,
+    name: "Bell peppers",
+    quantity: 2,
+    unit: "",
+    aisle: "Produce",
+    isChecked: false,
+    recipeId: 101,
+    recipeName: "Chicken Stir Fry"
+  },
+  {
+    id: 4,
+    name: "Brown rice",
+    quantity: 2,
+    unit: "cup",
+    aisle: "Grains",
+    isChecked: true,
+    recipeId: 101,
+    recipeName: "Chicken Stir Fry"
+  },
+  {
+    id: 5,
+    name: "Soy sauce",
+    quantity: 0.25,
+    unit: "cup",
+    aisle: "Condiments",
+    isChecked: false,
+    recipeId: 101,
+    recipeName: "Chicken Stir Fry"
+  },
+  {
+    id: 6,
+    name: "Eggs",
+    quantity: 12,
+    unit: "",
+    aisle: "Dairy & Eggs",
+    isChecked: false,
+    recipeId: 102,
+    recipeName: "Breakfast Scramble"
+  },
+  {
+    id: 7,
+    name: "Milk",
+    quantity: 1,
+    unit: "gallon",
+    aisle: "Dairy & Eggs",
+    isChecked: false
+  },
+  {
+    id: 8,
+    name: "Bread",
+    quantity: 1,
+    unit: "loaf",
+    aisle: "Bakery",
+    isChecked: true
+  },
+  {
+    id: 9,
+    name: "Apples",
+    quantity: 6,
+    unit: "",
+    aisle: "Produce",
+    isChecked: false
+  },
+  {
+    id: 10,
+    name: "Pasta",
+    quantity: 1,
+    unit: "pkg",
+    aisle: "Grains",
+    isChecked: false,
+    recipeId: 103,
+    recipeName: "Pasta Primavera"
+  }
+];
+
 const ShoppingList = () => {
   const apiClient = useApiClient();
+  const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const mealPlanId = searchParams.get('mealPlanId');
+  
+  // Local state for dummy data
+  const [dummyItems, setDummyItems] = useState<ShoppingListItem[]>(DUMMY_SHOPPING_LIST);
+  const [useDummyData, setUseDummyData] = useState(true); // Set to true to force using dummy data
+  
   const [newItemName, setNewItemName] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
   const [newItemUnit, setNewItemUnit] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingItem, setEditingItem] = useState<ShoppingListItem | null>(null);
   
-  // Mock shopping list data - in a real app, this would come from an API
-  const { data: shoppingList, isLoading, refetch } = useQuery({
+  // Fetch shopping list
+  const { data: shoppingList, isLoading, isError } = useQuery({
     queryKey: ['shoppingList'],
     queryFn: async () => {
+      if (useDummyData) {
+        // Return dummy data
+        return { success: true, items: dummyItems };
+      }
+      
       try {
-        // This would be replaced with an actual API call
-        // const response = await apiClient.get<{ success: boolean, items: ShoppingListItem[] }>('/shopping-list');
+        const response = await apiClient.get<{ success: boolean, items: ShoppingListItem[] }>('/shopping-list');
         
-        // Mock data for development
-        const mockItems: ShoppingListItem[] = [
-          { id: 1, name: 'Chicken breast', quantity: 2, unit: 'lb', aisle: 'Meat', isChecked: false },
-          { id: 2, name: 'Spinach', quantity: 1, unit: 'bag', aisle: 'Produce', isChecked: false },
-          { id: 3, name: 'Brown rice', quantity: 1, unit: 'cup', aisle: 'Grains', isChecked: true },
-          { id: 4, name: 'Olive oil', quantity: 0.25, unit: 'cup', aisle: 'Oils & Vinegars', isChecked: false },
-          { id: 5, name: 'Garlic', quantity: 3, unit: 'cloves', aisle: 'Produce', isChecked: false },
-          { id: 6, name: 'Salt', quantity: 1, unit: 'tsp', aisle: 'Spices', isChecked: true },
-          { id: 7, name: 'Black pepper', quantity: 0.5, unit: 'tsp', aisle: 'Spices', isChecked: false },
-          { id: 8, name: 'Lemon', quantity: 1, unit: '', aisle: 'Produce', isChecked: false, recipeId: 123, recipeName: 'Lemon Chicken' },
-          { id: 9, name: 'Butter', quantity: 2, unit: 'tbsp', aisle: 'Dairy', isChecked: false, recipeId: 123, recipeName: 'Lemon Chicken' },
-        ];
+        if (response.success) {
+          return response;
+        }
         
-        return {
-          success: true,
-          items: mockItems
-        };
+        throw new Error('Failed to fetch shopping list');
       } catch (error) {
         console.error('Error fetching shopping list:', error);
         throw new Error('Failed to fetch shopping list');
       }
     }
   });
+  
+  // Generate shopping list from meal plan
+  const generateShoppingListMutation = useMutation({
+    mutationFn: async () => {
+      if (useDummyData) {
+        // Simulate API call
+        return { success: true };
+      }
+      
+      if (!mealPlanId) return null;
+      
+      return apiClient.post<{ success: boolean }>(`/mealplans/${mealPlanId}/shopping-list`);
+    },
+    onSuccess: () => {
+      toast.success('Shopping list generated from meal plan');
+      queryClient.invalidateQueries({ queryKey: ['shoppingList'] });
+    },
+    onError: (error) => {
+      console.error('Error generating shopping list:', error);
+      toast.error('Failed to generate shopping list');
+    }
+  });
+  
+  // Check if we should generate a shopping list from the meal plan
+  useEffect(() => {
+    if (mealPlanId) {
+      generateShoppingListMutation.mutate();
+    }
+  }, [mealPlanId]);
+  
+  // Add item mutation
+  const addItemMutation = useMutation({
+    mutationFn: (newItem: { name: string, quantity: number, unit: string }) => {
+      if (useDummyData) {
+        // Add to local dummy data
+        const newId = Math.max(...dummyItems.map(item => item.id), 0) + 1;
+        const itemToAdd: ShoppingListItem = {
+          id: newId,
+          name: newItem.name,
+          quantity: newItem.quantity,
+          unit: newItem.unit,
+          aisle: guessAisleFromName(newItem.name),
+          isChecked: false
+        };
+        
+        setDummyItems([...dummyItems, itemToAdd]);
+        return Promise.resolve({ success: true });
+      }
+      
+      return apiClient.post('/shopping-list', newItem);
+    },
+    onSuccess: () => {
+      toast.success(`Added ${newItemName} to your shopping list`);
+      setNewItemName('');
+      setNewItemQuantity('1');
+      setNewItemUnit('');
+      queryClient.invalidateQueries({ queryKey: ['shoppingList'] });
+    },
+    onError: (error) => {
+      console.error('Error adding item:', error);
+      toast.error('Failed to add item to shopping list');
+    }
+  });
+  
+  // Toggle item mutation
+  const toggleItemMutation = useMutation({
+    mutationFn: (item: ShoppingListItem) => {
+      if (useDummyData) {
+        // Update local dummy data
+        const updatedItems = dummyItems.map(dItem => 
+          dItem.id === item.id 
+            ? { ...dItem, isChecked: !dItem.isChecked } 
+            : dItem
+        );
+        setDummyItems(updatedItems);
+        return Promise.resolve({ success: true });
+      }
+      
+      return apiClient.patch(`/shopping-list/${item.id}`, {
+        isChecked: !item.isChecked
+      });
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`${!variables.isChecked ? 'Checked off' : 'Unmarked'} ${variables.name}`);
+      queryClient.invalidateQueries({ queryKey: ['shoppingList'] });
+    },
+    onError: (error) => {
+      console.error('Error toggling item:', error);
+      toast.error('Failed to update item');
+    }
+  });
+  
+  // Delete item mutation
+  const deleteItemMutation = useMutation({
+    mutationFn: (itemId: number) => {
+      if (useDummyData) {
+        // Remove from local dummy data
+        setDummyItems(dummyItems.filter(item => item.id !== itemId));
+        return Promise.resolve({ success: true });
+      }
+      
+      return apiClient.delete(`/shopping-list/${itemId}`);
+    },
+    onSuccess: (_, variables) => {
+      toast.success('Item removed from shopping list');
+      queryClient.invalidateQueries({ queryKey: ['shoppingList'] });
+    },
+    onError: (error) => {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to delete item');
+    }
+  });
+  
+  // Update item mutation
+  const updateItemMutation = useMutation({
+    mutationFn: (item: ShoppingListItem) => {
+      if (useDummyData) {
+        // Update local dummy data
+        const updatedItems = dummyItems.map(dItem => 
+          dItem.id === item.id ? item : dItem
+        );
+        setDummyItems(updatedItems);
+        return Promise.resolve({ success: true });
+      }
+      
+      return apiClient.put(`/shopping-list/${item.id}`, item);
+    },
+    onSuccess: () => {
+      toast.success('Item updated successfully');
+      setEditingItem(null);
+      queryClient.invalidateQueries({ queryKey: ['shoppingList'] });
+    },
+    onError: (error) => {
+      console.error('Error updating item:', error);
+      toast.error('Failed to update item');
+    }
+  });
+  
+  // Clear completed items mutation
+  const clearCompletedMutation = useMutation({
+    mutationFn: () => {
+      if (useDummyData) {
+        // Remove completed items from local dummy data
+        setDummyItems(dummyItems.filter(item => !item.isChecked));
+        return Promise.resolve({ success: true });
+      }
+      
+      return apiClient.delete('/shopping-list/completed');
+    },
+    onSuccess: () => {
+      toast.success('Cleared all completed items');
+      queryClient.invalidateQueries({ queryKey: ['shoppingList'] });
+    },
+    onError: (error) => {
+      console.error('Error clearing completed items:', error);
+      toast.error('Failed to clear completed items');
+    }
+  });
+  
+  // Helper function to guess aisle from item name
+  function guessAisleFromName(name: string): string {
+    const lowerName = name.toLowerCase();
+    
+    if (/milk|cheese|yogurt|cream|butter|egg/.test(lowerName)) return "Dairy & Eggs";
+    if (/chicken|beef|pork|turkey|fish|shrimp|meat/.test(lowerName)) return "Meat & Seafood";
+    if (/apple|banana|orange|lettuce|vegetable|carrot|tomato|potato|onion|garlic|fruit|broccoli|pepper/.test(lowerName)) return "Produce";
+    if (/pasta|rice|cereal|flour|sugar|grain|bread/.test(lowerName)) return "Grains";
+    if (/oil|vinegar|sauce|condiment|ketchup|mustard|mayonnaise|dressing/.test(lowerName)) return "Condiments";
+    if (/cookie|candy|chocolate|snack|chip/.test(lowerName)) return "Snacks";
+    if (/juice|soda|water|drink|beverage|coffee|tea/.test(lowerName)) return "Beverages";
+    if (/soap|detergent|paper|cleaning/.test(lowerName)) return "Household";
+    
+    return "Other";
+  }
   
   // Group items by aisle
   const groupItemsByAisle = (items: ShoppingListItem[]): GroupedItems => {
@@ -108,107 +382,35 @@ const ShoppingList = () => {
   const groupedActiveItems = groupItemsByAisle(activeItems);
   
   // Handle adding a new item
-  const handleAddItem = async () => {
+  const handleAddItem = () => {
     if (!newItemName.trim()) return;
     
-    try {
-      // In a real app, this would make an API call
-      // await apiClient.post('/shopping-list', {
-      //   name: newItemName,
-      //   quantity: parseFloat(newItemQuantity) || 1,
-      //   unit: newItemUnit
-      // });
-      
-      // For now, just show a success message
-      toast.success(`Added ${newItemName} to your shopping list`);
-      
-      // Clear form
-      setNewItemName('');
-      setNewItemQuantity('1');
-      setNewItemUnit('');
-      
-      // Refresh list
-      refetch();
-    } catch (error) {
-      console.error('Error adding item:', error);
-      toast.error('Failed to add item to shopping list');
-    }
+    addItemMutation.mutate({
+      name: newItemName,
+      quantity: parseFloat(newItemQuantity) || 1,
+      unit: newItemUnit
+    });
   };
   
   // Handle toggling an item's checked status
-  const handleToggleItem = async (item: ShoppingListItem) => {
-    try {
-      // In a real app, this would make an API call
-      // await apiClient.put(`/shopping-list/${item.id}`, {
-      //   ...item,
-      //   isChecked: !item.isChecked
-      // });
-      
-      // For now, just show a success message
-      toast.success(`${!item.isChecked ? 'Checked off' : 'Unmarked'} ${item.name}`);
-      
-      // Refresh list
-      refetch();
-    } catch (error) {
-      console.error('Error toggling item:', error);
-      toast.error('Failed to update item');
-    }
+  const handleToggleItem = (item: ShoppingListItem) => {
+    toggleItemMutation.mutate(item);
   };
   
   // Handle deleting an item
-  const handleDeleteItem = async (item: ShoppingListItem) => {
-    try {
-      // In a real app, this would make an API call
-      // await apiClient.delete(`/shopping-list/${item.id}`);
-      
-      // For now, just show a success message
-      toast.success(`Removed ${item.name} from your shopping list`);
-      
-      // Refresh list
-      refetch();
-    } catch (error) {
-      console.error('Error deleting item:', error);
-      toast.error('Failed to delete item');
-    }
+  const handleDeleteItem = (item: ShoppingListItem) => {
+    deleteItemMutation.mutate(item.id);
   };
   
-  // Handle editing an item
-  const handleUpdateItem = async () => {
+  // Handle updating an item
+  const handleUpdateItem = () => {
     if (!editingItem) return;
-    
-    try {
-      // In a real app, this would make an API call
-      // await apiClient.put(`/shopping-list/${editingItem.id}`, editingItem);
-      
-      // For now, just show a success message
-      toast.success(`Updated ${editingItem.name}`);
-      
-      // Close edit dialog
-      setEditingItem(null);
-      
-      // Refresh list
-      refetch();
-    } catch (error) {
-      console.error('Error updating item:', error);
-      toast.error('Failed to update item');
-    }
+    updateItemMutation.mutate(editingItem);
   };
   
   // Handle clearing completed items
-  const handleClearCompleted = async () => {
-    try {
-      // In a real app, this would make an API call
-      // await apiClient.delete('/shopping-list/completed');
-      
-      // For now, just show a success message
-      toast.success('Cleared all completed items');
-      
-      // Refresh list
-      refetch();
-    } catch (error) {
-      console.error('Error clearing completed items:', error);
-      toast.error('Failed to clear completed items');
-    }
+  const handleClearCompleted = () => {
+    clearCompletedMutation.mutate();
   };
   
   // Loading state
@@ -218,6 +420,24 @@ const ShoppingList = () => {
         <div className="text-center py-12">
           <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
           <p>Loading your shopping list...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (isError) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="text-center py-12">
+          <p className="text-destructive mb-4">Failed to load shopping list</p>
+          <Button 
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['shoppingList'] })}
+            variant="outline"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Try Again
+          </Button>
         </div>
       </div>
     );
@@ -319,7 +539,12 @@ const ShoppingList = () => {
               </div>
               
               <DialogFooter>
-                <Button onClick={handleAddItem}>Add to List</Button>
+                <Button 
+                  onClick={handleAddItem}
+                  disabled={addItemMutation.isPending}
+                >
+                  {addItemMutation.isPending ? 'Adding...' : 'Add to List'}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -373,6 +598,7 @@ const ShoppingList = () => {
                               <button 
                                 onClick={() => handleToggleItem(item)}
                                 className="rounded-full p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                disabled={toggleItemMutation.isPending}
                               >
                                 <Circle className="h-5 w-5" />
                               </button>
@@ -478,8 +704,11 @@ const ShoppingList = () => {
                                   )}
                                   
                                   <DialogFooter>
-                                    <Button onClick={handleUpdateItem}>
-                                      Save Changes
+                                    <Button 
+                                      onClick={handleUpdateItem}
+                                      disabled={updateItemMutation.isPending}
+                                    >
+                                      {updateItemMutation.isPending ? 'Saving...' : 'Save Changes'}
                                     </Button>
                                   </DialogFooter>
                                 </DialogContent>
@@ -490,6 +719,7 @@ const ShoppingList = () => {
                                 size="icon"
                                 className="h-8 w-8 text-destructive"
                                 onClick={() => handleDeleteItem(item)}
+                                disabled={deleteItemMutation.isPending}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -518,8 +748,9 @@ const ShoppingList = () => {
                       variant="outline" 
                       size="sm"
                       onClick={handleClearCompleted}
+                      disabled={clearCompletedMutation.isPending}
                     >
-                      Clear All
+                      {clearCompletedMutation.isPending ? 'Clearing...' : 'Clear All'}
                     </Button>
                   </div>
                   
@@ -533,6 +764,7 @@ const ShoppingList = () => {
                           <button 
                             onClick={() => handleToggleItem(item)}
                             className="rounded-full p-1 text-primary hover:bg-primary/10"
+                            disabled={toggleItemMutation.isPending}
                           >
                             <CircleCheck className="h-5 w-5" />
                           </button>
@@ -552,6 +784,7 @@ const ShoppingList = () => {
                           size="icon"
                           className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() => handleDeleteItem(item)}
+                          disabled={deleteItemMutation.isPending}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

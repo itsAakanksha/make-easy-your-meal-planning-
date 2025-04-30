@@ -19,6 +19,9 @@ router.get('/search', recipeController.searchRecipesSpoonacular);
 // Semantic search using vector embeddings
 router.get('/search/semantic', recipeController.searchRecipesSemantic);
 
+// Natural language search for recipes
+router.get('/search/natural', recipeController.searchRecipesNaturalLanguage);
+
 // Get user's saved recipes - MUST be defined BEFORE the /:id route to avoid parameter conflicts
 router.get('/saved', requireAuth, resolveUserId, 
   // Type assertion to fix TypeScript error
@@ -41,6 +44,16 @@ router.post('/unsave', requireAuth, resolveUserId,
 router.get('/:id/saved', requireAuth, resolveUserId, 
   // Type assertion to fix TypeScript error
   (req, res) => (recipeController as any).isRecipeSaved(req, res)
+);
+
+// Generate and store embedding for a recipe
+router.post('/:id/embedding', requireAuth, resolveUserId, 
+  (req, res) => (recipeController as any).generateEmbedding(req, res)
+);
+
+// Validate a recipe embedding
+router.get('/:id/validate-embedding', requireAuth, resolveUserId, 
+  (req, res) => (recipeController as any).validateRecipeEmbedding(req, res)
 );
 
 // Get recipe details - MUST be defined AFTER more specific routes

@@ -5,7 +5,8 @@ import { recipeEmbeddings, savedRecipes } from '../db/schema';
 import { inArray, eq, and } from 'drizzle-orm';
 import { searchRecipes, getRecipeInformation, getRecipeInformationBulk } from '../utils/spoonacular.client';
 import { generateEmbedding } from '../utils/embedding.generator';
-import { findSimilarVectors } from '../utils/vectorDb.client';
+import { findSimilarVectors, storeEmbedding } from '../utils/vectorDb.client';
+import { validateRecipeEmbedding } from '../utils/dataValidation';
 import { z } from 'zod';
 
 // Validation schema for recipe search parameters
@@ -130,6 +131,75 @@ export const recipeController = {
         return res.status(error.statusCode).json({ error: error.message });
       }
       return res.status(500).json({ error: 'Failed to search recipes semantically' });
+    }
+  },
+
+  /**
+   * Enhanced semantic search with natural language understanding
+   * This provides more accurate results for natural language queries
+   */
+  searchRecipesNaturalLanguage: async (req: Request, res: Response) => {
+    try {
+      // Parse and validate query parameters
+      const validationResult = semanticSearchParamsSchema.safeParse(req.query);
+      if (!validationResult.success) {
+        throw new ApiError(`Invalid search parameters: ${validationResult.error.message}`, 400);
+      }
+
+      const { q: query, number } = validationResult.data;
+
+      // Process the natural language query to extract intent and key terms
+      // Create an enhanced query that better captures the semantic meaning
+      const processedQuery = `Recipe search: ${query}. Find recipes that match this description, including ingredients, cooking methods, dietary restrictions, and cuisine types.`;
+
+      // Generate embedding for the enhanced search query
+      const queryEmbedding = await generateEmbedding(processedQuery);
+      if (!queryEmbedding || !queryEmbedding.length) {
+        throw new ApiError('Failed to generate embedding for search query', 500);
+      }
+
+      // Search vector database for similar recipes with higher similarity threshold
+      const topK = number;
+      const results = await findSimilarVectors(queryEmbedding, topK);
+      
+      if (!results || !results.length) {
+        return res.status(200).json({
+          success: true,
+          recipes: [],
+          total: 0
+        });
+      }
+
+      // Extract spoonacular IDs from results
+      const spoonacularIds = results.map(result => parseInt(result.id));
+      
+      // Get full recipe details from Spoonacular API
+      const recipes = await getRecipeInformationBulk(spoonacularIds);
+
+      // Add similarity score to each recipe
+      const recipesWithScore = recipes.map(recipe => {
+        const resultMatch = results.find(r => parseInt(r.id) === recipe.id);
+        return {
+          ...recipe,
+          similarityScore: resultMatch ? resultMatch.score : 0
+        };
+      });
+
+      // Sort by similarity score (highest first)
+      recipesWithScore.sort((a, b) => b.similarityScore - a.similarityScore);
+
+      return res.status(200).json({
+        success: true,
+        recipes: recipesWithScore,
+        total: recipesWithScore.length,
+        originalQuery: query
+      });
+    } catch (error) {
+      console.error('Error searching recipes with natural language:', error);
+      if (error instanceof ApiError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      return res.status(500).json({ error: 'Failed to search recipes with natural language' });
     }
   },
 
@@ -263,11 +333,13 @@ export const recipeController = {
       }
 
       // Save the recipe
+      console.log(`📝 RecipeController: Attempting to save recipe ID ${recipeId} for user ${userId}`);
       await db.insert(savedRecipes).values({
         userId,
         recipeId,
         savedAt: new Date()
       });
+      console.log(`✅ RecipeController: Recipe ${recipeId} successfully saved for user ${userId}`);
 
       return res.status(201).json({
         success: true,
@@ -386,6 +458,136 @@ export const recipeController = {
         return res.status(error.statusCode).json({ error: error.message });
       }
       return res.status(500).json({ error: 'Failed to check recipe saved status' });
+    }
+  },
+  
+  /**
+   * Generate and store embeddings for a recipe
+   * This is used to power semantic search
+   */
+  generateEmbedding: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const recipeId = parseInt(id);
+      
+      if (isNaN(recipeId)) {
+        throw new ApiError('Invalid recipe ID', 400);
+      }
+      
+      // Fetch recipe details
+      const recipe = await getRecipeInformation(recipeId);
+      if (!recipe) {
+        throw new ApiError('Recipe not found', 404);
+      }
+      
+      // Create embedding text from recipe information
+      const embeddingText = [
+        recipe.title,
+        recipe.summary,
+        recipe.instructions,
+        ...(recipe.extendedIngredients?.map(ing => ing.name) || []),
+        ...(recipe.dishTypes || []),
+        ...(recipe.cuisines || []),
+        ...(recipe.diets || []),
+      ].filter(Boolean).join(' ');
+      
+      if (!embeddingText.trim()) {
+        throw new ApiError('Insufficient recipe data for embedding', 400);
+      }
+      
+      // Generate embedding vector
+      const embedding = await generateEmbedding(embeddingText);
+      if (!embedding || !embedding.length) {
+        throw new ApiError('Failed to generate embedding', 500);
+      }
+      
+      // Store metadata for the recipe
+      const metadata = {
+        title: recipe.title,
+        imageUrl: recipe.image,
+        readyInMinutes: recipe.readyInMinutes,
+        servings: recipe.servings,
+        diets: recipe.diets,
+        cuisines: recipe.cuisines
+      };
+      
+      // Store in the vector database
+      await storeEmbedding(recipeId.toString(), embedding, metadata);
+      
+      // Store mapping in regular database
+      await db.insert(recipeEmbeddings)
+        .values({
+          spoonacularId: recipeId,
+          title: recipe.title,
+          descriptionSnippet: recipe.summary ? recipe.summary.substring(0, 200) : '',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .onConflictDoUpdate({
+          target: recipeEmbeddings.spoonacularId,
+          set: {
+            title: recipe.title,
+            descriptionSnippet: recipe.summary ? recipe.summary.substring(0, 200) : '',
+            updatedAt: new Date()
+          }
+        });
+      
+      console.log(`✅ RecipeController: Recipe embedding for ID ${recipeId} successfully stored in database`);
+      
+      // Validate embedding was stored correctly
+      const validationSucceeded = await validateRecipeEmbedding(recipeId, recipe.title);
+      
+      if (!validationSucceeded) {
+        console.warn(`Warning: Recipe embedding validation failed for recipe ${recipeId}`);
+      }
+      
+      return res.status(200).json({
+        success: true,
+        recipeId,
+        message: 'Recipe embedding generated and stored successfully',
+        validated: validationSucceeded
+      });
+    } catch (error) {
+      console.error('Error generating recipe embedding:', error);
+      if (error instanceof ApiError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      return res.status(500).json({ error: 'Failed to generate recipe embedding' });
+    }
+  },
+  
+  /**
+   * Validate a recipe embedding
+   */
+  validateRecipeEmbedding: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const recipeId = parseInt(id);
+      
+      if (isNaN(recipeId)) {
+        throw new ApiError('Invalid recipe ID', 400);
+      }
+      
+      // Fetch recipe details to get the title
+      const recipe = await getRecipeInformation(recipeId);
+      if (!recipe) {
+        throw new ApiError('Recipe not found', 404);
+      }
+      
+      // Validate the embedding
+      const validationSucceeded = await validateRecipeEmbedding(recipeId, recipe.title);
+      
+      return res.status(200).json({
+        success: true,
+        recipeId,
+        validated: validationSucceeded
+      });
+    } catch (error) {
+      console.error('Error validating recipe embedding:', error);
+      if (error instanceof ApiError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      return res.status(500).json({ error: 'Failed to validate recipe embedding' });
     }
   }
 };

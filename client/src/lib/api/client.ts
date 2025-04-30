@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/clerk-react";
 import * as React from "react";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Error class for API responses
 export class ApiError extends Error {

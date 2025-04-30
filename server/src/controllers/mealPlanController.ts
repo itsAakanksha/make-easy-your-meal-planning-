@@ -6,6 +6,7 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { selectMeals } from '../utils/mealPlanningAlgorithm';
 import { searchRecipes, RecipeSearchParams } from '../utils/spoonacular.client';
+import { validateMealPlan } from '../utils/dataValidation';
 
 // Add type for nutrition data
 interface NutritionSummary {
@@ -47,7 +48,9 @@ const mealPlanGenerateSchema = z.object({
     mealCount: z.number().int().min(1).max(6).optional(),
     readyTime: z.number().int().positive().optional()
   }).optional(),
-  useUserPreferences: z.boolean().default(true)
+  useUserPreferences: z.boolean().default(true),
+  // Add date parameter to the schema to allow specifying the plan date
+  date: z.string().optional()
 });
 
 export const mealPlanController = {
@@ -69,7 +72,7 @@ export const mealPlanController = {
         throw new ApiError(`Invalid meal plan parameters: ${validationResult.error.message}`, 400);
       }
 
-      const { timeFrame, targetCalories, diet, exclude, preferences, useUserPreferences } = validationResult.data;
+      const { timeFrame, targetCalories, diet, exclude, preferences, useUserPreferences, date } = validationResult.data;
 
       // Find internal user ID
       const user = await db.query.users.findFirst({
@@ -108,8 +111,9 @@ export const mealPlanController = {
       const effectiveMaxReadyTime = preferences?.readyTime || userPrefs?.maxPrepTime || 60;
 
       // Calculate dates for the meal plan
-      const today = new Date();
-      const startDate = new Date(today);
+      // If date parameter is provided, use it as the start date
+      const startDate = date ? new Date(date) : new Date();
+      // Set to midnight on the selected date to avoid timezone issues
       startDate.setHours(0, 0, 0, 0);
       
       const endDate = new Date(startDate);
@@ -123,7 +127,10 @@ export const mealPlanController = {
         excludeIngredients: effectiveExclude,
         cuisines: effectiveCuisines.length > 0 ? effectiveCuisines : undefined,
         maxReadyTime: effectiveMaxReadyTime,
-        number: timeFrame === 'day' ? effectiveMealCount * 5 : effectiveMealCount * 7 * 3 // Get more recipes than needed for variety
+        // Request significantly more recipes for better variety and quality
+        number: timeFrame === 'day' 
+          ? effectiveMealCount * 20  // 20x more recipes than meals for daily plans
+          : effectiveMealCount * 7 * 10  // 10x more recipes per meal for weekly plans (could be 210+ recipes)
       };
 
       console.log('Searching for candidate recipes with params:', searchParams);
@@ -186,16 +193,17 @@ export const mealPlanController = {
         nutritionSummary
       };
 
+      console.log(`📝 MealPlanController: Attempting to insert meal plan for user ${user.id}`);
       const insertedPlan = await db.insert(mealPlans)
-        .values({
-          userId: user.id,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
-          planData: planData,
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
+      .values({
+        userId: user.id,
+        startDate: startDate.toISOString().split('T')[0], // Add this line
+        endDate: endDate.toISOString().split('T')[0],
+        planData: planData,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    })
         .returning({
           id: mealPlans.id
         });
@@ -203,16 +211,27 @@ export const mealPlanController = {
       if (!insertedPlan.length) {
         throw new ApiError('Failed to create meal plan', 500);
       }
+      
+
+      // Validate the meal plan was saved correctly
+      const mealPlanId = insertedPlan[0].id;
+      const validationSucceeded = await validateMealPlan(mealPlanId, user.id);
+      
+      if (!validationSucceeded) {
+        console.warn(`Warning: Meal plan ${mealPlanId} validation failed`);
+      }
 
       return res.status(201).json({
         success: true,
-        id: insertedPlan[0].id,
+        id: mealPlanId,
+        validated: validationSucceeded,
         mealPlan: {
-          id: insertedPlan[0].id,
+          id: mealPlanId,
           timeFrame,
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
-          meals: formattedMeals
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+          meals: formattedMeals,
+          nutritionSummary
         }
       });
     } catch (error) {
@@ -315,11 +334,18 @@ export const mealPlanController = {
         throw new ApiError('Meal plan not found', 404);
       }
 
+      // Validate meal plan
+      const validationSucceeded = await validateMealPlan(planId, user.id);
+      if (!validationSucceeded) {
+        console.warn(`Warning: Retrieved meal plan ${planId} failed validation checks`);
+      }
+
       // Extract the meals from the planData
       const { planData, ...planMetadata } = mealPlan;
       
       return res.status(200).json({
         success: true,
+        validated: validationSucceeded,
         mealPlan: {
           ...planMetadata,
           timeFrame: planData.timeFrame,
@@ -334,5 +360,340 @@ export const mealPlanController = {
       }
       return res.status(500).json({ error: 'Failed to get meal plan details' });
     }
-  }
+  },
+
+  /**
+   * Validate a meal plan's data integrity
+   */
+  validateMealPlan: async (req: Request, res: Response) => {
+    try {
+      // Get clerkUserId from the auth middleware
+      const clerkUserId = req.auth?.userId;
+      if (!clerkUserId) {
+        throw new ApiError('Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      const planId = parseInt(id);
+      
+      if (isNaN(planId)) {
+        throw new ApiError('Invalid meal plan ID', 400);
+      }
+
+      // Find internal user ID
+      const user = await db.query.users.findFirst({
+        columns: { id: true },
+        where: eq(users.clerkUserId, clerkUserId)
+      });
+
+      if (!user) {
+        throw new ApiError('User not found', 404);
+      }
+
+      // Validate the meal plan
+      const validationSucceeded = await validateMealPlan(planId, user.id);
+      
+      return res.status(200).json({
+        success: true,
+        mealPlanId: planId,
+        validated: validationSucceeded
+      });
+    } catch (error) {
+      console.error('Error validating meal plan:', error);
+      if (error instanceof ApiError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      return res.status(500).json({ error: 'Failed to validate meal plan' });
+    }
+  },
+
+  /**
+   * Get meal plans for a specific date
+   * This endpoint retrieves meal plans that cover the given date
+   */
+  getMealPlansByDate: async (req: Request, res: Response) => {
+    try {
+      // Get clerkUserId from the auth middleware
+      const clerkUserId = req.auth?.userId;
+      if (!clerkUserId) {
+        throw new ApiError('Unauthorized', 401);
+      }
+
+      const { date } = req.params;
+      
+      // Validate date format (YYYY-MM-DD)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        throw new ApiError('Invalid date format. Please use YYYY-MM-DD format', 400);
+      }
+
+      // Parse the requested date
+      const requestedDate = new Date(date);
+      if (isNaN(requestedDate.getTime())) {
+        throw new ApiError('Invalid date', 400);
+      }
+      
+      // Format date as YYYY-MM-DD for database query
+      const formattedDate = requestedDate.toISOString().split('T')[0];
+
+      // Find internal user ID
+      const user = await db.query.users.findFirst({
+        columns: { id: true },
+        where: eq(users.clerkUserId, clerkUserId)
+      });
+
+      if (!user) {
+        throw new ApiError('User not found', 404);
+      }
+
+      // Query meal plans that include the requested date
+      // A plan includes the date if: startDate <= requestedDate <= endDate
+      const matchingPlans = await db.query.mealPlans.findMany({
+        where: and(
+          eq(mealPlans.userId, user.id),
+          sql`${mealPlans.startDate} <= ${formattedDate}`,
+          sql`${mealPlans.endDate} >= ${formattedDate}`
+        ),
+        orderBy: desc(mealPlans.createdAt)
+      });
+
+      if (!matchingPlans || matchingPlans.length === 0) {
+        return res.status(200).json({
+          success: true,
+          mealPlans: []
+        });
+      }
+
+      // Process the plans to include only meals for the requested date
+      const processedPlans = matchingPlans.map(plan => {
+        const { planData, ...planMetadata } = plan;
+        
+        // Filter meals to only include those for the requested date
+        const mealsForRequestedDate = planData.meals.filter(meal => {
+          // Some meal plans might have date as a string, others as a Date object
+          const mealDate = new Date(meal.date);
+          return mealDate.toISOString().split('T')[0] === formattedDate;
+        });
+
+        return {
+          ...planMetadata,
+          timeFrame: planData.timeFrame,
+          meals: mealsForRequestedDate, // Use consistent property name for meals
+          mealsForRequestedDate: mealsForRequestedDate, // Keep this for backward compatibility
+          totalMeals: planData.meals.length,
+          nutritionSummary: planData.nutritionSummary
+        };
+      });
+
+      return res.status(200).json({
+        success: true,
+        date: formattedDate,
+        mealPlans: processedPlans
+      });
+    } catch (error) {
+      console.error('Error getting meal plans for date:', error);
+      if (error instanceof ApiError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      return res.status(500).json({ error: 'Failed to get meal plans for date' });
+    }
+  },
+
+  /**
+   * Remove a meal from a meal plan
+   * This endpoint allows the user to remove a specific meal from their meal plan
+   */
+  removeMeal: async (req: Request, res: Response) => {
+    try {
+      // Get clerkUserId from the auth middleware
+      const clerkUserId = req.auth?.userId;
+      if (!clerkUserId) {
+        throw new ApiError('Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      const mealId = id; // This is the composite ID from the meals array: recipeId_index
+      
+      if (!mealId) {
+        throw new ApiError('Invalid meal ID', 400);
+      }
+
+      // Find internal user ID
+      const user = await db.query.users.findFirst({
+        columns: { id: true },
+        where: eq(users.clerkUserId, clerkUserId)
+      });
+
+      if (!user) {
+        throw new ApiError('User not found', 404);
+      }
+
+      // Find all user's meal plans
+      const userMealPlans = await db.query.mealPlans.findMany({
+        where: eq(mealPlans.userId, user.id)
+      });
+
+      // Search through each meal plan's meals to find and remove the specified meal
+      let mealFound = false;
+      let updatedPlanId = 0;
+
+      for (const plan of userMealPlans) {
+        const planData = plan.planData;
+        const meals = planData.meals || [];
+
+        // Find the meal index
+        const mealIndex = meals.findIndex(meal => meal.id === mealId);
+        
+        if (mealIndex !== -1) {
+          // Remove the meal
+          meals.splice(mealIndex, 1);
+          mealFound = true;
+
+          // Update meal plan in database
+          await db.update(mealPlans)
+            .set({ 
+              planData: { 
+                ...planData, 
+                meals 
+              },
+              updatedAt: new Date()
+            })
+            .where(eq(mealPlans.id, plan.id));
+          
+          updatedPlanId = plan.id;
+          break;
+        }
+      }
+
+      if (!mealFound) {
+        throw new ApiError('Meal not found in any meal plan', 404);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Meal removed successfully',
+        updatedPlanId
+      });
+    } catch (error) {
+      console.error('Error removing meal:', error);
+      if (error instanceof ApiError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      return res.status(500).json({ error: 'Failed to remove meal' });
+    }
+  },
+
+  /**
+   * Add a recipe to a meal plan
+   * This endpoint allows users to add a specific recipe to their meal plan for a specific meal type
+   */
+  addRecipeToMealPlan: async (req: Request, res: Response) => {
+    try {
+      // Get clerkUserId from the auth middleware
+      const clerkUserId = req.auth?.userId;
+      if (!clerkUserId) {
+        throw new ApiError('Unauthorized', 401);
+      }
+
+      const { id } = req.params; // Meal plan ID
+      const planId = parseInt(id);
+      
+      if (isNaN(planId)) {
+        throw new ApiError('Invalid meal plan ID', 400);
+      }
+
+      // Validate request body
+      const { recipeId, mealType, date } = req.body;
+      
+      if (!recipeId || !mealType) {
+        throw new ApiError('Recipe ID and meal type are required', 400);
+      }
+
+      // Find internal user ID
+      const user = await db.query.users.findFirst({
+        columns: { id: true },
+        where: eq(users.clerkUserId, clerkUserId)
+      });
+
+      if (!user) {
+        throw new ApiError('User not found', 404);
+      }
+
+      // Get the meal plan, ensuring it belongs to the user
+      const mealPlan = await db.query.mealPlans.findFirst({
+        where: and(
+          eq(mealPlans.id, planId),
+          eq(mealPlans.userId, user.id)
+        )
+      });
+
+      if (!mealPlan) {
+        throw new ApiError('Meal plan not found', 404);
+      }
+
+      // Get recipe details from Spoonacular API
+      const recipeDetails = await searchRecipes({
+        ids: [recipeId],
+        number: 1
+      });
+
+      if (!recipeDetails || recipeDetails.length === 0) {
+        throw new ApiError('Recipe not found', 404);
+      }
+
+      const recipe = recipeDetails[0];
+
+      // Format the new meal
+      const newMeal = {
+        id: `${recipe.id}_${Date.now()}`, // Generate a unique ID
+        recipeId: recipe.id,
+        mealType: mealType.toLowerCase(),
+        title: recipe.title,
+        imageUrl: recipe.image,
+        readyInMinutes: recipe.readyInMinutes,
+        servings: recipe.servings,
+        date: date || mealPlan.startDate // Use provided date or default to plan start date
+      };
+
+      // Update the plan's meals array
+      const planData = mealPlan.planData;
+      const meals = planData.meals || [];
+
+      // Check if we already have a meal of this type for this date
+      const mealDate = new Date(newMeal.date).toISOString().split('T')[0];
+      const existingMealIndex = meals.findIndex(meal => {
+        const currentMealDate = new Date(meal.date).toISOString().split('T')[0];
+        return meal.mealType === newMeal.mealType && currentMealDate === mealDate;
+      });
+
+      // Either replace existing meal or add new one
+      if (existingMealIndex !== -1) {
+        meals[existingMealIndex] = newMeal;
+      } else {
+        meals.push(newMeal);
+      }
+
+      // Update the meal plan in the database
+      await db.update(mealPlans)
+        .set({ 
+          planData: { 
+            ...planData, 
+            meals 
+          },
+          updatedAt: new Date()
+        })
+        .where(eq(mealPlans.id, planId));
+
+      return res.status(200).json({
+        success: true,
+        message: 'Recipe added to meal plan',
+        meal: newMeal
+      });
+    } catch (error) {
+      console.error('Error adding recipe to meal plan:', error);
+      if (error instanceof ApiError) {
+        return res.status(error.statusCode).json({ error: error.message });
+      }
+      return res.status(500).json({ error: 'Failed to add recipe to meal plan' });
+    }
+  },
 };

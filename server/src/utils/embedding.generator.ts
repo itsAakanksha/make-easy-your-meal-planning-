@@ -5,43 +5,33 @@
 
 import axios from 'axios';
 import { ApiError } from './error.classes';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 /**
- * Generate text embeddings using OpenAI's embedding API
+ * Generate text embeddings using Google's Gemini API
  * This converts text into vector representations for semantic search
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   try {
-    // Make sure OpenAI API key is configured
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Make sure Gemini API key is configured
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new ApiError('OpenAI API key not configured', 500);
+      throw new ApiError('Gemini API key not configured', 500);
     }
 
-    // Call OpenAI API to generate embedding
-    const response = await axios.post(
-      'https://api.openai.com/v1/embeddings',
-      {
-        input: text,
-        model: 'text-embedding-ada-002' // Recommended model for embeddings
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    // Initialize the Google Generative AI SDK
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const embeddingModel = genAI.getGenerativeModel({ model: "embedding-001" });
 
-    // Extract the embedding vector from the response
-    if (response.data && 
-        response.data.data && 
-        response.data.data[0] && 
-        response.data.data[0].embedding) {
-      return response.data.data[0].embedding;
+    // Generate embedding using Gemini's embedding model
+    const result = await embeddingModel.embedContent(text);
+    const embedding = result.embedding.values;
+    
+    if (!embedding || embedding.length === 0) {
+      throw new ApiError('Invalid response from Gemini API', 500);
     }
 
-    throw new ApiError('Invalid response from OpenAI', 500);
+    return embedding;
   } catch (error) {
     console.error('Error generating embedding:', error);
     

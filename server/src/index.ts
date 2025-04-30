@@ -42,8 +42,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Mount our modular API routes
-app.use('/api', router);
+// Mount our modular API routes 
+app.use('/', router); 
 
 // Add error handler AFTER routes
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

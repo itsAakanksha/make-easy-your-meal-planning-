@@ -143,6 +143,33 @@ export interface RecipeSearchParams extends PaginationParams {
   tags?: string[];
 }
 
+export interface SearchRecipesParams extends PaginationParams {
+  query?: string;
+  ingredients?: string[];
+  excludeIngredients?: string[];
+  diet?: string[];
+  cuisine?: string[];
+  mealType?: string[];
+  maxReadyTime?: number;
+  minCalories?: number;
+  maxCalories?: number;
+  tags?: string[];
+}
+
+// Natural language recipe search params
+export interface NaturalLanguageSearchParams {
+  q: string;
+  number?: number;
+}
+
+// Recipe response interfaces
+export interface RecipesResponse {
+  success: boolean;
+  recipes: any[];
+  total: number;
+  originalQuery?: string;
+}
+
 // Meal Plan types
 export interface MealPlan {
   id: string;

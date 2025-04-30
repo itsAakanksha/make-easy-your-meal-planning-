@@ -1,4 +1,4 @@
-import { useContext, createContext, useState, useEffect } from 'react';
+import { useContext, createContext, useState, useEffect, useCallback } from 'react';
 import { 
   useAuth as useClerkAuth,
   useUser,
@@ -18,6 +18,7 @@ interface AuthContextType {
   signUp: (redirectUrl?: string) => void;
   signOut: (redirectUrl?: string) => Promise<void>;
   getToken: () => Promise<string | null>;
+  ensureUserRegistered: () => Promise<boolean>;
   error: string | null;
 }
 
@@ -133,6 +134,62 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return null;
     }
   };
+
+  // Function to ensure user is registered in our database
+  const ensureUserRegistered = useCallback(async (): Promise<boolean> => {
+    if (!userId || !isAuthenticated) return false;
+    
+    try {
+      console.log(`Ensuring user ${userId} is registered in the database...`);
+      // Call the validation endpoint to trigger user creation
+      const token = await getToken();
+      if (!token) {
+        console.error('No auth token available');
+        return false;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/me/validate`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        console.error(`Failed to validate user registration: ${response.status}`);
+        return false;
+      }
+      
+      const data = await response.json();
+      console.log(`User registration status: ${JSON.stringify(data)}`);
+      
+      if (data.success && !data.allValid) {
+        // If user exists but some data is invalid, we should fix it
+        console.log('User exists but some validation failed, ensuring complete registration...');
+        
+        // Make another call to ensure preferences are created
+        const prefsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/users/preferences`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!prefsResponse.ok) {
+          console.warn('Could not retrieve or create user preferences');
+        } else {
+          console.log('User preferences verified or created');
+        }
+      }
+      
+      return data.success === true;
+    } catch (error) {
+      console.error('Error ensuring user registration:', error);
+      return false;
+    }
+  }, [userId, isAuthenticated, getToken]);
   
   // Provide auth context to children
   return (
@@ -146,6 +203,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         signUp,
         signOut,
         getToken,
+        ensureUserRegistered,
         error
       }}
     >

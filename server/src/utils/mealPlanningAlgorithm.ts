@@ -55,6 +55,20 @@ interface SelectedMeal extends Recipe {
   date: string;
 }
 
+// Map frontend diet terms to Spoonacular API values
+// This helps ensure we're using the correct terms when filtering
+const dietMappings: Record<string, string> = {
+  'balanced': 'balanced',
+  'vegetarian': 'vegetarian',
+  'vegan': 'vegan',
+  'paleo': 'paleo',
+  'ketogenic': 'ketogenic',
+  'gluten-free': 'gluten free',
+  'pescetarian': 'pescatarian', // Spoonacular uses this spelling
+  'whole30': 'whole 30',
+  // Add any other mappings as needed
+};
+
 /**
  * Selects the best recipes to include in a meal plan based on user preferences and nutritional goals
  */
@@ -64,16 +78,96 @@ export async function selectMeals(
   timeFrame: 'day' | 'week'
 ): Promise<SelectedMeal[]> {
   console.log(`Starting meal selection for ${timeFrame} plan with ${candidateRecipes.length} candidates`);
+  console.log(`Diet preference: ${preferences.diet || 'none'}`);
+  
+  // If we have fewer than expected recipes, try to get more with a fallback strategy
+  if (candidateRecipes.length < preferences.mealCount * 3) {
+    console.log(`Not enough candidate recipes (${candidateRecipes.length}). Attempting to fetch more...`);
+    try {
+      // First, try getting more recipes with same diet but different parameters
+      const moreRecipes = await spoonacularClient.searchRecipes({
+        number: preferences.mealCount * 5,
+        diet: preferences.diet,
+        maxReadyTime: preferences.maxPrepTime ? preferences.maxPrepTime * 1.5 : undefined // Allow slightly longer prep time
+      });
+      
+      // If that still doesn't give us enough, try without diet restriction
+      if ((candidateRecipes.length + moreRecipes.length) < preferences.mealCount * 3) {
+        console.log(`Still not enough recipes, trying without diet restriction`);
+        const fallbackRecipes = await spoonacularClient.searchRecipes({
+          number: preferences.mealCount * 5,
+          maxReadyTime: preferences.maxPrepTime
+        });
+        
+        // Add these recipes to our candidate pool
+        const existingIds = new Set(candidateRecipes.map(r => r.id));
+        for (const recipe of fallbackRecipes) {
+          if (!existingIds.has(recipe.id)) {
+            candidateRecipes.push(recipe);
+            existingIds.add(recipe.id);
+          }
+        }
+      }
+      
+      // Add the first batch of recipes if they're not duplicates
+      const existingIds = new Set(candidateRecipes.map(r => r.id));
+      for (const recipe of moreRecipes) {
+        if (!existingIds.has(recipe.id)) {
+          candidateRecipes.push(recipe);
+          existingIds.add(recipe.id);
+        }
+      }
+      
+      console.log(`Added more recipes. Now have ${candidateRecipes.length} candidates.`);
+    } catch (error) {
+      console.error("Error fetching more recipes:", error);
+    }
+  }
+  
+  if (candidateRecipes.length === 0) {
+    console.error("No candidate recipes available after all attempts");
+    throw new Error("Could not find any suitable recipes. Please try again or adjust your preferences.");
+  }
   
   // Create deep copy of recipes to avoid modifying originals
   const recipes = JSON.parse(JSON.stringify(candidateRecipes)) as Recipe[];
   
-  // Apply strict filters
+  // Log diet information of first 5 recipes to help debug
+  const sampleRecipes = recipes.slice(0, 5);
+  console.log("Diet information for sample recipes:");
+  sampleRecipes.forEach(recipe => {
+    console.log(`Recipe ${recipe.id} (${recipe.title}): Diets = ${recipe.diets?.join(', ') || 'none'}`);
+  });
+  
+  // Apply filters
   const filteredRecipes = filterRecipesByConstraints(recipes, preferences);
   console.log(`After filtering, ${filteredRecipes.length} recipes remain`);
   
-  if (filteredRecipes.length === 0) {
-    throw new Error('No recipes match your constraints. Try relaxing some filters.');
+  if (filteredRecipes.length < preferences.mealCount) {
+    // Try again with more lenient filtering if we got too few results
+    console.log("Too few recipes match constraints. Trying with more lenient filtering...");
+    const lenientFiltered = recipes.filter(recipe => {
+      // Skip diet filtering entirely in lenient mode
+      // Only apply preparation time filter with 50% extra allowance
+      if (preferences.maxPrepTime && recipe.readyInMinutes > preferences.maxPrepTime * 1.5) {
+        return false;
+      }
+      return true;
+    });
+    
+    console.log(`Found ${lenientFiltered.length} recipes with lenient filtering.`);
+    
+    // Use all available recipes if we're still below minimum
+    if (lenientFiltered.length < preferences.mealCount) {
+      console.warn("Not enough recipes even with lenient filtering. Using all available recipes.");
+      // Use original candidates as a last resort
+      filteredRecipes.length = 0; // Clear the array
+      filteredRecipes.push(...recipes);
+    } else {
+      // Otherwise use the lenient filtered recipes
+      filteredRecipes.length = 0; // Clear the array
+      filteredRecipes.push(...lenientFiltered);
+    }
   }
   
   // Sort recipes into meal type buckets based on their characteristics
@@ -175,12 +269,50 @@ export async function selectMeals(
  * Filter recipes based on user constraints
  */
 function filterRecipesByConstraints(recipes: Recipe[], preferences: MealPreferences): Recipe[] {
+  // Map the user's diet preference to the expected Spoonacular format
+  const dietPreference = preferences.diet ? 
+    (dietMappings[preferences.diet.toLowerCase()] || preferences.diet) : undefined;
+  
+  console.log(`Filtering with diet preference: ${dietPreference || 'none'}`);
+  
   return recipes.filter(recipe => {
-    // Check dietary restrictions
-    if (preferences.diet && preferences.diet !== 'none') {
-      // For vegetarian, vegan, etc.
-      if (!recipe.diets || !recipe.diets.includes(preferences.diet.toLowerCase())) {
-        return false;
+    // If we have a diet preference and the recipe has diet data
+    if (dietPreference && dietPreference !== 'none' && recipe.diets) {
+      const recipeDiets = recipe.diets.map(d => d.toLowerCase());
+      
+      // Special case handling for common diets to ensure proper matching
+      if (dietPreference === 'vegetarian') {
+        // For vegetarian, check if any of the diets contain vegetarian or vegan
+        if (!recipeDiets.some(diet => 
+            diet.includes('vegetarian') || diet === 'vegan')) {
+          return false;
+        }
+      } 
+      else if (dietPreference === 'vegan') {
+        // For vegan, must explicitly have 'vegan' diet
+        if (!recipeDiets.includes('vegan')) {
+          return false;
+        }
+      }
+      else if (dietPreference === 'gluten free') {
+        // For gluten-free, check variations
+        if (!recipeDiets.some(diet => 
+            diet.includes('gluten free') || diet.includes('gluten-free'))) {
+          return false;
+        }
+      }
+      else {
+        // For other diets, use fuzzy matching
+        const normalizedDiet = dietPreference.toLowerCase().replace(/[-\s]/g, '');
+        
+        // Check if any of the recipe's diets match our preference
+        if (!recipeDiets.some(diet => {
+          const normalizedRecipeDiet = diet.replace(/[-\s]/g, '');
+          return normalizedRecipeDiet.includes(normalizedDiet) || 
+                 normalizedDiet.includes(normalizedRecipeDiet);
+        })) {
+          return false;
+        }
       }
     }
     
@@ -188,8 +320,6 @@ function filterRecipesByConstraints(recipes: Recipe[], preferences: MealPreferen
     if (preferences.maxPrepTime && recipe.readyInMinutes > preferences.maxPrepTime) {
       return false;
     }
-    
-    // More filters can be added here (allergies would be handled at API level already)
     
     // Recipe passes all filters
     return true;
@@ -205,6 +335,13 @@ function categorizeMealsByType(recipes: Recipe[]): {
   dinner: Recipe[];
   snack: Recipe[];
 } {
+  // Create a copy of the recipes array and shuffle it to increase variety
+  const shuffledRecipes = [...recipes];
+  for (let i = shuffledRecipes.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledRecipes[i], shuffledRecipes[j]] = [shuffledRecipes[j], shuffledRecipes[i]];
+  }
+
   const buckets = {
     breakfast: [] as Recipe[],
     lunch: [] as Recipe[],
@@ -212,36 +349,53 @@ function categorizeMealsByType(recipes: Recipe[]): {
     snack: [] as Recipe[]
   };
   
-  recipes.forEach(recipe => {
-    // Use dish types to categorize
+  // First pass: use dish types for categorization
+  shuffledRecipes.forEach(recipe => {
     if (recipe.dishTypes && recipe.dishTypes.length > 0) {
-      if (recipe.dishTypes.some(t => t.includes('breakfast'))) {
+      const dishTypes = recipe.dishTypes.map(t => t.toLowerCase());
+      
+      if (dishTypes.some(t => t.includes('breakfast') || t.includes('lunch') || t.includes('morning meal'))) {
         buckets.breakfast.push(recipe);
         return;
       }
-      if (recipe.dishTypes.some(t => t.includes('lunch'))) {
+      if (dishTypes.some(t => t.includes('lunch') || t.includes('main course') || t.includes('main dish'))) {
         buckets.lunch.push(recipe);
         return;
       }
-      if (recipe.dishTypes.some(t => t.includes('dinner') || t.includes('main course'))) {
+      if (dishTypes.some(t => t.includes('dinner') || t.includes('main course') || t.includes('main dish'))) {
         buckets.dinner.push(recipe);
         return;
       }
-      if (recipe.dishTypes.some(t => 
+      if (dishTypes.some(t => 
         t.includes('snack') || 
         t.includes('appetizer') || 
-        t.includes('side dish')
+        t.includes('side dish') ||
+        t.includes('dessert')
       )) {
         buckets.snack.push(recipe);
         return;
       }
     }
-    
-    // If dish types don't help, use heuristics
+  });
+  
+  // Second pass: distribute uncategorized recipes based on heuristics
+  const uncategorized = shuffledRecipes.filter(recipe => {
+    return !(
+      buckets.breakfast.some(r => r.id === recipe.id) ||
+      buckets.lunch.some(r => r.id === recipe.id) ||
+      buckets.dinner.some(r => r.id === recipe.id) ||
+      buckets.snack.some(r => r.id === recipe.id)
+    );
+  });
+  
+  uncategorized.forEach(recipe => {
     if (recipe.readyInMinutes <= 15) {
-      // Quick recipes could be breakfast or snacks
-      buckets.breakfast.push(recipe);
-      buckets.snack.push(recipe);
+      // Quick recipes are likely breakfast or snacks
+      if (buckets.breakfast.length <= buckets.snack.length) {
+        buckets.breakfast.push(recipe);
+      } else {
+        buckets.snack.push(recipe);
+      }
     } else if (recipe.readyInMinutes <= 30) {
       // Medium-time recipes could be lunch
       buckets.lunch.push(recipe);
@@ -252,32 +406,70 @@ function categorizeMealsByType(recipes: Recipe[]): {
   });
   
   // Ensure we have recipes in each bucket
-  if (buckets.breakfast.length === 0) {
-    // Fall back to meals with shorter prep times
-    buckets.breakfast = recipes
-      .filter(r => r.readyInMinutes <= 20)
-      .sort((a, b) => a.readyInMinutes - b.readyInMinutes)
-      .slice(0, 10);
+  const ensureMinimumInBucket = (bucketName: 'breakfast' | 'lunch' | 'dinner' | 'snack', minCount: number) => {
+    if (buckets[bucketName].length < minCount) {
+      const neededCount = minCount - buckets[bucketName].length;
+      
+      // Find which buckets have excess recipes we can borrow from
+      const otherBuckets = ['breakfast', 'lunch', 'dinner', 'snack'].filter(b => b !== bucketName) as Array<'breakfast' | 'lunch' | 'dinner' | 'snack'>;
+      
+      // Sort other buckets by size (largest first)
+      otherBuckets.sort((a, b) => buckets[b].length - buckets[a].length);
+      
+      // Try to take from largest bucket
+      let taken = 0;
+      for (const bucket of otherBuckets) {
+        while (buckets[bucket].length > minCount && taken < neededCount) {
+          // Take a random recipe from this bucket
+          const randomIndex = Math.floor(Math.random() * buckets[bucket].length);
+          const recipe = buckets[bucket][randomIndex];
+          
+          // Remove from source bucket and add to target bucket
+          buckets[bucket].splice(randomIndex, 1);
+          buckets[bucketName].push(recipe);
+          taken++;
+          
+          if (taken >= neededCount) break;
+        }
+        
+        if (taken >= neededCount) break;
+      }
+    }
+  };
+  
+  // Try to ensure at least 3 recipes in each bucket
+  ensureMinimumInBucket('breakfast', 3);
+  ensureMinimumInBucket('lunch', 3);
+  ensureMinimumInBucket('dinner', 3);
+  ensureMinimumInBucket('snack', 3);
+  
+  // If any bucket is still empty, use any remaining recipes
+  const remainingRecipes = shuffledRecipes.filter(recipe => {
+    return !(
+      buckets.breakfast.some(r => r.id === recipe.id) ||
+      buckets.lunch.some(r => r.id === recipe.id) ||
+      buckets.dinner.some(r => r.id === recipe.id) ||
+      buckets.snack.some(r => r.id === recipe.id)
+    );
+  });
+  
+  if (buckets.breakfast.length === 0 && remainingRecipes.length > 0) {
+    buckets.breakfast.push(...remainingRecipes.slice(0, Math.min(3, remainingRecipes.length)));
   }
   
-  if (buckets.lunch.length === 0) {
-    buckets.lunch = recipes
-      .sort((a, b) => a.readyInMinutes - b.readyInMinutes)
-      .slice(0, 10);
+  if (buckets.lunch.length === 0 && remainingRecipes.length > 3) {
+    buckets.lunch.push(...remainingRecipes.slice(3, Math.min(6, remainingRecipes.length)));
   }
   
-  if (buckets.dinner.length === 0) {
-    buckets.dinner = recipes
-      .sort((a, b) => b.readyInMinutes - a.readyInMinutes) // Longer prep times for dinner
-      .slice(0, 10);
+  if (buckets.dinner.length === 0 && remainingRecipes.length > 6) {
+    buckets.dinner.push(...remainingRecipes.slice(6, Math.min(9, remainingRecipes.length)));
   }
   
-  if (buckets.snack.length === 0) {
-    buckets.snack = recipes
-      .filter(r => r.readyInMinutes <= 15)
-      .sort((a, b) => a.readyInMinutes - b.readyInMinutes)
-      .slice(0, 10);
+  if (buckets.snack.length === 0 && remainingRecipes.length > 9) {
+    buckets.snack.push(...remainingRecipes.slice(9));
   }
+  
+  console.log(`Categorized recipes: Breakfast=${buckets.breakfast.length}, Lunch=${buckets.lunch.length}, Dinner=${buckets.dinner.length}, Snack=${buckets.snack.length}`);
   
   return buckets;
 }
@@ -302,13 +494,13 @@ function selectBestRecipeForMeal(
     // Get calories from recipe
     const caloriesInRecipe = getCaloriesFromRecipe(recipe);
     
-    // Score based on how close it is to target calories
+    // Score based on how close it is to target calories (0-1 scale)
     const calorieScore = 1 - Math.min(1, Math.abs(caloriesInRecipe - targetCalories) / targetCalories);
     
-    // Add variety and other factors to score
-    // More complex scoring could consider macronutrient balance, etc.
+    // Add some randomness to increase variety (0-0.2 scale)
+    const randomness = Math.random() * 0.2;
     
-    return calorieScore;
+    return calorieScore + randomness;
   };
   
   // Sort by score (highest first)
@@ -325,7 +517,10 @@ function selectBestRecipeForMeal(
  */
 function getCaloriesFromRecipe(recipe: Recipe): number {
   if (recipe.nutrition && recipe.nutrition.nutrients) {
-    const calories = recipe.nutrition.nutrients.find(n => n.name.toLowerCase() === 'calories');
+    const calories = recipe.nutrition.nutrients.find(n => 
+      n.name.toLowerCase() === 'calories' || 
+      n.name.toLowerCase() === 'energy'
+    );
     if (calories) {
       return calories.amount;
     }
@@ -353,13 +548,14 @@ function updateNutritionTotals(
   if (recipe.nutrition && recipe.nutrition.nutrients) {
     // Find each nutrient and add to totals
     recipe.nutrition.nutrients.forEach(nutrient => {
-      if (nutrient.name.toLowerCase() === 'calories') {
+      const name = nutrient.name.toLowerCase();
+      if (name === 'calories' || name === 'energy') {
         nutritionTotals.calories += nutrient.amount;
-      } else if (nutrient.name.toLowerCase() === 'protein') {
+      } else if (name === 'protein') {
         nutritionTotals.protein += nutrient.amount;
-      } else if (['carbohydrates', 'carbs'].includes(nutrient.name.toLowerCase())) {
+      } else if (['carbohydrates', 'carbs'].includes(name)) {
         nutritionTotals.carbs += nutrient.amount;
-      } else if (nutrient.name.toLowerCase() === 'fat') {
+      } else if (name === 'fat') {
         nutritionTotals.fat += nutrient.amount;
       }
     });
