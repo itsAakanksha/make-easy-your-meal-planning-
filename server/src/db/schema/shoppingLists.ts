@@ -7,19 +7,19 @@ export const shoppingLists = pgTable('shopping_lists', {
     id: serial('id').primaryKey(),
     userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    mealPlanId: integer('meal_plan_id').references(() => mealPlans.id), // Optional link to a meal plan
-    startDate: timestamp('start_date'), // Shopping period start (optional)
-    endDate: timestamp('end_date'), // Shopping period end (optional)
+    mealPlanId: integer('meal_plan_id').references(() => mealPlans.id), 
+    startDate: timestamp('start_date'), 
+    endDate: timestamp('end_date'), 
     items: jsonb('items').notNull().$type<Array<{
-        id: string; // Unique identifier for the item
-        name: string; // Ingredient name
-        amount: number; // Amount needed
-        unit: string; // Unit of measurement
-        aisle: string; // Grocery aisle for organization
-        recipeIds: number[]; // Spoonacular recipe IDs this item is used in
-        purchased: boolean; // Whether the item has been purchased
-        notes?: string; // Any additional notes
-        addedBy: 'user' | 'system'; // Whether added manually or from recipes
+        id: string; 
+        name: string; 
+        amount: number; 
+        unit: string; 
+        aisle: string; 
+        recipeIds: number[]; 
+        purchased: boolean; 
+        notes?: string; 
+        addedBy: 'user' | 'system'; 
     }>>(),
     isArchived: boolean('is_archived').default(false),
     createdAt: timestamp('created_at').defaultNow().notNull(),

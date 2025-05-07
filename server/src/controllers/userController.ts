@@ -166,23 +166,23 @@ export const userController = {
     try {
       // Get clerkUserId from the auth middleware
       const clerkUserId = req.auth?.userId;
-      console.log(`📋 User Controller (updateUserPreferences): Request to update preferences for clerk ID ${clerkUserId}`);
-      console.log(`📋 User Controller (updateUserPreferences): Request body:`, req.body);
+      console.log(` User Controller (updateUserPreferences): Request to update preferences for clerk ID ${clerkUserId}`);
+      console.log(` User Controller (updateUserPreferences): Request body:`, req.body);
       
       if (!clerkUserId) {
-        console.log(`❌ User Controller (updateUserPreferences): No userId found in request`);
+        console.log(`User Controller (updateUserPreferences): No userId found in request`);
         throw new ApiError('Unauthorized', 401);
       }
 
       // Validate the request body
       const validationResult = userPreferenceSchema.safeParse(req.body);
       if (!validationResult.success) {
-        console.log(`❌ User Controller (updateUserPreferences): Invalid preference data:`, validationResult.error);
+        console.log(` User Controller (updateUserPreferences): Invalid preference data:`, validationResult.error);
         throw new ApiError('Invalid preference data: ' + validationResult.error.message, 400);
       }
 
       const preferenceData = validationResult.data;
-      console.log(`✅ User Controller (updateUserPreferences): Data validation passed`);
+      console.log(`User Controller (updateUserPreferences): Data validation passed`);
 
       // Find the internal user ID
       console.log(`🔍 User Controller (updateUserPreferences): Finding internal user ID for clerkUserId ${clerkUserId}`);
@@ -191,7 +191,7 @@ export const userController = {
                                 .where(eq(users.clerkUserId, clerkUserId));
 
       if (!userResult || userResult.length === 0) {
-        console.log(`❌ User Controller (updateUserPreferences): User not found for clerkUserId ${clerkUserId}`);
+        console.log(` User Controller (updateUserPreferences): User not found for clerkUserId ${clerkUserId}`);
         throw new ApiError('User not found', 404);
       }
       
