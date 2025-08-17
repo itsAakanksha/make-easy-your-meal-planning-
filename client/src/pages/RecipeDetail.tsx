@@ -39,7 +39,6 @@ import {
 import { Progress } from "@/components/ui/progress";
 
 // Utils & Types
-import { cn } from '@/lib/utils';
 
 // Define Ingredient type for better typing
 interface Ingredient {
@@ -170,11 +169,11 @@ const RecipeDetail = () => {
     
     try {
       if (isSaved) {
-        await unsaveRecipe(recipe.id);
+        await unsaveRecipe(recipe.id.toString());
         setIsSaved(false);
         toast.success('Recipe removed from your collection');
       } else {
-        await saveRecipe(recipe.id);
+        await saveRecipe(recipe.id.toString());
         setIsSaved(true);
         toast.success('Recipe saved to your collection');
       }

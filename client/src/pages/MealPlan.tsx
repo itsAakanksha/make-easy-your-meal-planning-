@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,21 +13,33 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '@/lib/api/client';
-import { useSearchParams, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { MealPlan as MealPlanType, MealPlanPreferences } from '@/lib/spoonacular';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { MealPlanPreferences } from '@/lib/spoonacular';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Reusable components for meal cards
-const MealCard = ({ meal, onRemove, mealType }) => {
+interface MealCardProps {
+  meal: {
+    id: string | number;
+    title: string;
+    imageUrl?: string;
+    readyInMinutes?: number;
+    servings?: number;
+    recipeId?: number;
+  };
+  onRemove: (id: string | number) => void;
+  mealType: string;
+}
+
+const MealCard = ({ meal, onRemove, mealType }: MealCardProps) => {
   if (!meal) return null;
   
   return (
@@ -86,7 +98,13 @@ const MealCard = ({ meal, onRemove, mealType }) => {
   );
 };
 
-const EmptyMealCard = ({ mealType, selectedDate, formatDateString }) => {
+interface EmptyMealCardProps {
+  mealType: string;
+  selectedDate: Date;
+  formatDateString: (date: Date) => string;
+}
+
+const EmptyMealCard = ({ mealType, selectedDate, formatDateString }: EmptyMealCardProps) => {
   return (
     <Card className="hover:bg-muted/50 transition-colors h-full">
       <Link 
@@ -111,7 +129,6 @@ const EmptyMealCard = ({ mealType, selectedDate, formatDateString }) => {
 };
 
 const MealPlan = () => {
-  const [searchParams] = useSearchParams();
   const [date, setDate] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
@@ -125,9 +142,6 @@ const MealPlan = () => {
   
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
-  
-  // Check if we're adding a recipe from recipe detail page
-  const addRecipeId = searchParams.get('addRecipe');
   
   // Format date to string (YYYY-MM-DD)
   const formatDateString = (date: Date): string => {
@@ -145,7 +159,32 @@ const MealPlan = () => {
         console.log("Fetching meal plans for date:", dateStr);
         
         // Call the backend API to get meal plan for the selected date
-        const response = await apiClient.get<{ success: boolean, date: string, mealPlans?: any[] }>(`/mealplans/date/${dateStr}`);
+        const response = await apiClient.get<{ 
+          success: boolean, 
+          date: string, 
+          mealPlans?: Array<{
+            id: number;
+            createdAt: string;
+            meals?: Array<{
+              id: string | number;
+              mealType: string;
+              title: string;
+              imageUrl?: string;
+              readyInMinutes?: number;
+              servings?: number;
+              recipeId?: number;
+            }>;
+            mealsForRequestedDate?: Array<{
+              id: string | number;
+              mealType: string;
+              title: string;
+              imageUrl?: string;
+              readyInMinutes?: number;
+              servings?: number;
+              recipeId?: number;
+            }>;
+          }>
+        }>(`/mealplans/date/${dateStr}`);
         console.log("Got response for date query:", response);
         
         if (response.success && response.mealPlans && response.mealPlans.length > 0) {
@@ -157,7 +196,15 @@ const MealPlan = () => {
           console.log("Found meal plan:", mostRecentPlan);
           
           // Check if we have meals in the meals property or mealsForRequestedDate property
-          let mealsArray = [];
+          let mealsArray: Array<{
+            id: string | number;
+            mealType: string;
+            title: string;
+            imageUrl?: string;
+            readyInMinutes?: number;
+            servings?: number;
+            recipeId?: number;
+          }> = [];
           
           if (mostRecentPlan.meals && mostRecentPlan.meals.length > 0) {
             mealsArray = mostRecentPlan.meals;
@@ -215,7 +262,22 @@ const MealPlan = () => {
       console.log("Generating meal plan with params:", requestBody);
       
       // Call the backend API to generate a meal plan
-      return apiClient.post("/mealplans/generate", requestBody);
+      return apiClient.post<{
+        success: boolean;
+        id?: number;
+        mealPlan?: {
+          id: number;
+          meals: Array<{
+            id: string | number;
+            mealType: string;
+            title: string;
+            imageUrl?: string;
+            readyInMinutes?: number;
+            servings?: number;
+            recipeId?: number;
+          }>;
+        };
+      }>("/mealplans/generate", requestBody);
     },
     onSuccess: (data) => {
       // Close the dialog
@@ -255,28 +317,6 @@ const MealPlan = () => {
         });
       }
     },
-    onError: (error) => {
-      console.error("Error generating meal plan:", error);
-      
-      // Extract more detailed error information if available
-      let errorMessage = "Failed to generate meal plan. Please try again.";
-      
-      if (error.response?.data?.error) {
-        errorMessage = `Error: ${error.response.data.error}`;
-      } else if (error.message) {
-        errorMessage = `Error: ${error.message}`;
-      }
-      
-      // Log detailed error information for debugging
-      console.error("Detailed error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        fullError: error
-      });
-      
-      toast.error(errorMessage);
-    }
   });
 
   // Navigate to previous/next day/week
@@ -340,40 +380,15 @@ const MealPlan = () => {
     generateMealPlanMutation.mutate();
   };
 
-  // Handle adding a recipe to a meal slot
-  const handleAddRecipeToSlot = async (mealType: string, recipeId: number) => {
-    if (!selectedDate || !mealPlan) return;
-    
-    try {
-      // Call the API to add a recipe to the meal plan
-      const response = await apiClient.post(`/mealplans/${mealPlan.id}/add-recipe`, {
-        recipeId,
-        mealType
-      });
-      
-      if (response.success) {
-        toast.success(`Added recipe to ${mealType.toLowerCase()}`);
-        
-        // Refresh meal plan data
-        queryClient.invalidateQueries({ queryKey: ['mealPlan', formatDateString(selectedDate)] });
-      } else {
-        toast.error("Failed to add recipe");
-      }
-    } catch (error) {
-      console.error("Error adding recipe to meal plan:", error);
-      toast.error("Something went wrong. Please try again.");
-    }
-  };
-
   // Handle removing a recipe from a meal slot
-  const handleRemoveMeal = async (mealId: number) => {
+  const handleRemoveMeal = async (mealId: string | number) => {
     if (!selectedDate || !mealPlan) return;
     
     try {
       // Call the API to remove a meal
-      const response = await apiClient.delete(`/mealplans/meals/${mealId}`);
+      const response = await apiClient.delete<{ success: boolean }>(`/mealplans/meals/${mealId}`);
       
-      if (response.success) {
+      if (response && response.success) {
         toast.success("Meal removed successfully");
         
         // Refresh meal plan data
@@ -526,7 +541,6 @@ const MealPlan = () => {
                 head_row: "flex",
                 row: "flex w-full mt-2",
                 table: "w-full border-collapse space-y-1",
-                month_select: "p-1 pe-2 opacity-50 hover:opacity-100",
                 root: "bg-background p-3",
                 vhidden: "hidden"
               }}
@@ -612,7 +626,15 @@ const MealPlan = () => {
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {mealTypes.map((mealType) => {
-                      const meal = mealPlan?.meals?.find(m => {
+                      const meal = mealPlan?.meals?.find((m: {
+                        mealType: string;
+                        id: string | number;
+                        imageUrl?: string;
+                        title: string;
+                        readyInMinutes?: number;
+                        servings?: number;
+                        recipeId?: number;
+                      }) => {
                         if (!m.mealType) return false;
                         const normalizedMealType = m.mealType.toLowerCase();
                         const searchMealType = mealType.toLowerCase();
@@ -665,7 +687,7 @@ const MealPlan = () => {
                       key={index}
                       className={cn(
                         "p-2 text-center rounded-md cursor-pointer",
-                        formatDateString(date) === formatDateString(selectedDate)
+                        selectedDate && formatDateString(date) === formatDateString(selectedDate)
                           ? "bg-primary text-primary-foreground"
                           : formatDateString(date) === formatDateString(new Date())
                             ? "bg-accent"

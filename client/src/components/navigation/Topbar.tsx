@@ -1,15 +1,11 @@
 import { useAuth } from '@/hooks/use-auth.tsx'
 import { UserButton } from '@clerk/clerk-react'
-import { ChefHat, Menu } from 'lucide-react'
-import { Button } from '../ui/button'
+import { ChefHat} from 'lucide-react'
 import { ModeToggle } from './ModeToggle'
 import { Link } from 'react-router-dom'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { useMobile } from '@/hooks/use-mobile'
 
 export const Topbar = () => {
   const { isAuthenticated } = useAuth()
-  const isMobile = useMobile()
   
   return (
     <header className="sticky top-0 z-20 flex h-16 w-full items-center border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">

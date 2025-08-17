@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/use-auth.tsx'
 import { ClerkLoaded, ClerkLoading } from '@clerk/clerk-react'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 
 import { Toaster } from './components/ui/sonner'
 import AuthLayout from './components/layouts/AuthLayout'
@@ -16,7 +16,7 @@ import SignUpPage from './pages/auth/SignUp'
 
 // Protected Pages
 import DashboardPage from './pages/Dashboard'
-import RecipesPage from './pages/Recipes'
+import RecipesPage from './pages/recipes'
 import MealPlanPage from './pages/MealPlan'
 
 import RecipeDetailPage from './pages/RecipeDetail'

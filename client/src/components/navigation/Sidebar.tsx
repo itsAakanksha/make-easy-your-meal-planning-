@@ -12,7 +12,7 @@ import {
   ChevronRight,
   Menu
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '../ui/button'
 import { ModeToggle } from './ModeToggle'
 import { cn } from '@/lib/utils'

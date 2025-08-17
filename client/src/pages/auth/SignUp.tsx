@@ -1,10 +1,8 @@
-import { useNavigate } from 'react-router-dom'
 import { SignUp } from '@clerk/clerk-react'
 import { dark } from '@clerk/themes'
 import { useTheme } from '../../components/ui/theme-provider'
 
 const SignUpPage = () => {
-  const navigate = useNavigate()
   const { theme } = useTheme()
   const isDark = theme === 'dark'
   

@@ -37,12 +37,13 @@ export interface MealPlanPreferences {
   budgetPerMeal?: number;
   cookingTime?: number;
   servings?: number;
+  excludeIngredients?: string[];
 }
 
 export interface Meal {
   id: number;
   mealPlanId: number;
-  recipeId: number;
+  recipeId: string;
   mealType: string;
   title: string;
   imageUrl?: string;
@@ -79,13 +80,24 @@ export function setApiClientInstance(client: ReturnType<typeof useApiClient>) {
 }
 
 export async function searchRecipes(filters: SearchFilters): Promise<Recipe[]> {
-  const response = await getApiClientInstance().searchRecipes(filters);
+  const queryParams = new URLSearchParams();
+  if (filters.query) {
+    queryParams.append("query", filters.query);
+  }
+  if (filters.diet) {
+    queryParams.append("diet", filters.diet);
+  }
+  if (filters.maxCalories !== undefined) {
+    queryParams.append("maxCalories", filters.maxCalories.toString());
+  }
+  
+  const response = await getApiClientInstance().get<{ recipes: Recipe[] }>(`/recipes/search?${queryParams.toString()}`);
   return response.recipes || [];
 }
 
 export async function getRecipe(id: number): Promise<Recipe> {
-  const response = await getApiClientInstance().getRecipeById(id.toString());
-  if (!response.success || !response.recipe) {
+  const response = await getApiClientInstance().get<{ recipe: Recipe }>(`/recipes/${id}`);
+  if (!response.recipe) {
     throw new Error("Failed to fetch recipe");
   }
   return response.recipe;
@@ -97,11 +109,11 @@ export async function generateMealPlan(date: string, preferences: MealPlanPrefer
     preferences
   });
   
-  if (!response.success || !response.mealPlans || !response.mealPlans[0]) {
+  if (!response.success || !response.mealPlan) {
     throw new Error("Failed to generate meal plan");
   }
   
-  return response.mealPlans[0];
+  return response.mealPlan;
 }
 
 export async function getMealPlans(): Promise<MealPlan[]> {
@@ -114,7 +126,7 @@ export async function getMealPlans(): Promise<MealPlan[]> {
   return response.mealPlans;
 }
 
-export async function getMealPlanById(id: number): Promise<MealPlan> {
+export async function getMealPlanById(id: string): Promise<MealPlan> {
   const response = await getApiClientInstance().getMealPlanById(id);
   
   if (!response.success || !response.mealPlan) {
@@ -134,7 +146,7 @@ export async function getSavedRecipes(): Promise<Recipe[]> {
   return response.recipes;
 }
 
-export async function saveRecipe(recipeId: number): Promise<boolean> {
+export async function saveRecipe(recipeId: string): Promise<boolean> {
   const response = await getApiClientInstance().saveRecipe(recipeId);
   
   if (!response.success) {
@@ -144,7 +156,7 @@ export async function saveRecipe(recipeId: number): Promise<boolean> {
   return true;
 }
 
-export async function unsaveRecipe(recipeId: number): Promise<boolean> {
+export async function unsaveRecipe(recipeId: string): Promise<boolean> {
   const response = await getApiClientInstance().unsaveRecipe(recipeId);
   
   if (!response.success) {

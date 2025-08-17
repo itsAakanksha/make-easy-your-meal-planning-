@@ -13,16 +13,13 @@ import {
   Search,
   RefreshCw
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card,  CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 // Define types for shopping list
 interface ShoppingListItem {
@@ -147,7 +144,7 @@ const ShoppingList = () => {
   
   // Local state for dummy data
   const [dummyItems, setDummyItems] = useState<ShoppingListItem[]>(DUMMY_SHOPPING_LIST);
-  const [useDummyData, setUseDummyData] = useState(true); // Set to true to force using dummy data
+  const [useDummyData] = useState(true); // Set to true to force using dummy data
   
   const [newItemName, setNewItemName] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
@@ -256,7 +253,7 @@ const ShoppingList = () => {
         return Promise.resolve({ success: true });
       }
       
-      return apiClient.patch(`/shopping-list/${item.id}`, {
+      return apiClient.put(`/shopping-list/${item.id}`, {
         isChecked: !item.isChecked
       });
     },
@@ -281,7 +278,7 @@ const ShoppingList = () => {
       
       return apiClient.delete(`/shopping-list/${itemId}`);
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (_) => {
       toast.success('Item removed from shopping list');
       queryClient.invalidateQueries({ queryKey: ['shoppingList'] });
     },

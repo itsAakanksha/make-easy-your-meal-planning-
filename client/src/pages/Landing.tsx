@@ -2,6 +2,17 @@ import { Link } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import {CheckCircle, ArrowRight } from 'lucide-react'
 
+// Smooth scroll function
+const scrollToSection = (sectionId: string) => {
+  const element = document.getElementById(sectionId)
+  if (element) {
+    element.scrollIntoView({ 
+      behavior: 'smooth',
+      block: 'start'
+    })
+  }
+}
+
 const features = [
   {
     title: 'AI-Powered Meal Planning',
@@ -51,21 +62,30 @@ export default function Landing() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Navigation */}
-      <header className="px-4 lg:px-6 h-16 flex items-center border-b">
-        <div className="container mx-auto flex justify-between items-center">
+      <header className="px-4 lg:px-6 h-16 flex items-center justify-center border-b">
+        <div className="container mx-auto flex justify-between items-center max-w-7xl">
           <Link to="/" className="flex items-center gap-2">
             <span className="font-bold">AI Meal Planner</span>
           </Link>
           <nav className="ml-auto flex gap-4 sm:gap-6">
-            <Link to="#features" className="text-sm font-medium hover:underline underline-offset-4">
+            <button 
+              onClick={() => scrollToSection('features')} 
+              className="text-sm font-medium hover:underline underline-offset-4 transition-colors duration-200 bg-transparent border-none cursor-pointer p-0 text-foreground hover:text-primary"
+            >
               Features
-            </Link>
-            <Link to="#testimonials" className="text-sm font-medium hover:underline underline-offset-4">
+            </button>
+            {/* <button 
+              onClick={() => scrollToSection('testimonials')} 
+              className="text-sm font-medium hover:underline underline-offset-4 transition-colors duration-200 bg-transparent border-none cursor-pointer p-0 text-foreground hover:text-primary"
+            >
               Testimonials
-            </Link>
-            <Link to="#pricing" className="text-sm font-medium hover:underline underline-offset-4">
+            </button> */}
+            <button 
+              onClick={() => scrollToSection('pricing')} 
+              className="text-sm font-medium hover:underline underline-offset-4 transition-colors duration-200 bg-transparent border-none cursor-pointer p-0 text-foreground hover:text-primary"
+            >
               Pricing
-            </Link>
+            </button>
           </nav>
           <div className="flex items-center gap-2 ml-4 md:ml-6">
             <Button asChild variant="ghost" size="sm">
@@ -80,7 +100,7 @@ export default function Landing() {
       
       {/* Hero */}
       <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-b from-background to-muted">
-        <div className="container px-4 md:px-6 space-y-10 xl:space-y-16">
+        <div className="container mx-auto px-4 md:px-6 space-y-10 xl:space-y-16 max-w-7xl">
           <div className="grid max-w-[1300px] mx-auto gap-4 px-4 sm:px-6 md:px-10 md:grid-cols-2 md:gap-16">
             <div className="flex flex-col justify-center space-y-4">
               <div className="space-y-2">
@@ -95,8 +115,13 @@ export default function Landing() {
                 <Button asChild size="lg">
                   <Link to="/signup" className="px-8">Get Started</Link>
                 </Button>
-                <Button asChild variant="outline" size="lg">
-                  <Link to="#features" className="px-8">Learn More</Link>
+                <Button 
+                  onClick={() => scrollToSection('features')} 
+                  variant="outline" 
+                  size="lg"
+                  className="px-8"
+                >
+                  Learn More
                 </Button>
               </div>
             </div>
@@ -115,8 +140,8 @@ export default function Landing() {
       </section>
       
       {/* Features */}
-      <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-background">
-        <div className="container px-4 md:px-6">
+      <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-background scroll-mt-16">
+        <div className="container mx-auto px-4 md:px-6 max-w-7xl">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <div className="space-y-2">
               <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Features</div>
@@ -143,8 +168,8 @@ export default function Landing() {
       </section>
       
       {/* Testimonials */}
-      <section id="testimonials" className="w-full py-12 md:py-24 lg:py-32 bg-muted">
-        <div className="container px-4 md:px-6">
+      {/* <section id="testimonials" className="w-full py-12 md:py-24 lg:py-32 bg-muted scroll-mt-16">
+        <div className="container mx-auto px-4 md:px-6 max-w-7xl">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <div className="space-y-2">
               <div className="inline-block rounded-lg bg-background px-3 py-1 text-sm">Testimonials</div>
@@ -187,11 +212,11 @@ export default function Landing() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
       
       {/* Pricing */}
-      <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-background">
-        <div className="container px-4 md:px-6">
+      <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-background scroll-mt-16">
+        <div className="container mx-auto px-4 md:px-6 max-w-7xl">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <div className="space-y-2">
               <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Pricing</div>
@@ -232,11 +257,11 @@ export default function Landing() {
             </div>
             
             {/* Pro Plan */}
-            <div className="flex flex-col rounded-lg border bg-background p-6 ring-2 ring-primary">
-              <div className="absolute -translate-y-12 rounded-full bg-primary px-3 py-1 text-sm font-medium text-primary-foreground">
+            <div className="flex flex-col rounded-lg border bg-background p-6 ring-2 ring-primary relative">
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-sm font-medium text-primary-foreground">
                 Most Popular
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 mt-4">
                 <h3 className="text-2xl font-bold">Pro</h3>
                 <p className="text-muted-foreground">Perfect for food enthusiasts</p>
               </div>
@@ -313,7 +338,7 @@ export default function Landing() {
       
       {/* CTA */}
       <section className="w-full py-12 md:py-24 lg:py-32 bg-primary text-primary-foreground">
-        <div className="container px-4 md:px-6">
+        <div className="container mx-auto px-4 md:px-6 max-w-7xl">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <div className="space-y-2">
               <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">Ready to Transform Your Meal Planning?</h2>
@@ -335,7 +360,7 @@ export default function Landing() {
       
       {/* Footer */}
       <footer className="w-full py-6 md:py-0 bg-background">
-        <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
+        <div className="container mx-auto flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row max-w-7xl">
           <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
             © {new Date().getFullYear()} AI Meal Planner. All rights reserved.
           </p>

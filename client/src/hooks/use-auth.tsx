@@ -38,8 +38,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const { isLoaded, isSignedIn } = useClerkAuth();
   const { user } = useUser();
   const clerk = useClerk();
-  const { signIn: clerkSignIn, setActive: setActiveSignIn } = useSignIn();
-  const { signUp: clerkSignUp, setActive: setActiveSignUp } = useSignUp();
+  const { signIn: clerkSignIn } = useSignIn();
+  const { signUp: clerkSignUp} = useSignUp();
   
   // Check if authenticated
   const isAuthenticated = isSignedIn === true;

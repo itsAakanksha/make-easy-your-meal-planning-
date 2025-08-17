@@ -7,8 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { CalendarDays, ChefHat, Sparkles, ShoppingCart, ArrowRight } from 'lucide-react'
 import { formatDate } from '../lib/utils'
 import { useQuery } from '@tanstack/react-query'
-import { getSavedRecipes } from '../lib/spoonacular'
-import { Meal, MealPlan } from '../lib/spoonacular'
 import { Skeleton } from '../components/ui/skeleton'
 import { useApiClient } from '@/lib/api/client'
 
@@ -68,15 +66,24 @@ export default function Dashboard() {
     }
   });
 
+  type DisplayMeal = {
+    id: string;
+    type: string;
+    title: string;
+    imageUrl: string;
+    prepTime: number;
+    calories: number;
+  };
+  
   // Format meals for display
-  const todaysMeals = todaysMealPlanData?.meals?.map(meal => ({
-    id: meal.id.toString(),
-    type: meal.mealType,
-    title: meal.title,
-    imageUrl: meal.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600',
-    prepTime: meal.readyInMinutes || 0,
-    calories: 0 // We'll need to fetch this separately if needed
-  })) || [];
+    const todaysMeals: DisplayMeal[] = todaysMealPlanData?.meals?.map((meal: { id: number; mealType: string; title: string; imageUrl?: string; readyInMinutes?: number }) => ({
+      id: meal.id.toString(),
+      type: meal.mealType,
+      title: meal.title,
+      imageUrl: meal.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600',
+      prepTime: meal.readyInMinutes || 0,
+      calories: 0 // We'll need to fetch this separately if needed
+    })) || [];
   
   // Update greeting based on time of day
   useEffect(() => {

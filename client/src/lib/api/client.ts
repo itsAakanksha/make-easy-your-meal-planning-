@@ -122,6 +122,51 @@ export const apiClient = {
       console.error('Error fetching meal plans:', error);
       return { success: false, mealPlans: [] };
     }
+  },
+
+  async generateMealPlan(data: any) {
+    try {
+      return await this.post<{ success: boolean, mealPlan: MealPlan }>('/meal-plans/generate', data);
+    } catch (error) {
+      console.error('Error generating meal plan:', error);
+      return { success: false, mealPlan: null };
+    }
+  },
+
+  async getMealPlanById(id: string) {
+    try {
+      return await this.get<{ success: boolean, mealPlan: MealPlan }>(`/meal-plans/${id}`);
+    } catch (error) {
+      console.error('Error fetching meal plan:', error);
+      return { success: false, mealPlan: null };
+    }
+  },
+
+  async getSavedRecipes() {
+    try {
+      return await this.get<{ success: boolean, recipes: any[] }>('/recipes/saved');
+    } catch (error) {
+      console.error('Error fetching saved recipes:', error);
+      return { success: false, recipes: [] };
+    }
+  },
+
+  async saveRecipe(recipeId: string) {
+    try {
+      return await this.post<{ success: boolean }>('/recipes/save', { recipeId });
+    } catch (error) {
+      console.error('Error saving recipe:', error);
+      return { success: false };
+    }
+  },
+
+  async unsaveRecipe(recipeId: string) {
+    try {
+      return await this.delete<{ success: boolean }>(`/recipes/save/${recipeId}`);
+    } catch (error) {
+      console.error('Error unsaving recipe:', error);
+      return { success: false };
+    }
   }
 };
 

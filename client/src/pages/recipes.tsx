@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
 import { BookmarkIcon, ChefHatIcon, SearchIcon, SlidersIcon, MessageSquareTextIcon, ListFilterIcon } from 'lucide-react'
 
 // UI Components
@@ -21,8 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 // API & Services
 import recipeService from '@/lib/api/recipeService'
 
-// Utils & Types
-import { cn, formatTime } from '@/lib/utils'
+
 
 // Define recipe types
 interface Recipe {
@@ -34,11 +32,6 @@ interface Recipe {
   diets?: string[]
 }
 
-interface Nutrient {
-  name: string
-  amount: number
-  unit: string
-}
 
 interface SearchFilters {
   query: string
@@ -217,7 +210,7 @@ const Recipes = () => {
   const [searchMode, setSearchMode] = useState<'standard' | 'natural'>('standard')
   
   // State to control whether to use dummy data
-  const [useDummyData, setUseDummyData] = useState(true)
+  const [useDummyData] = useState(true)
 
   // Query to fetch initial/popular recipes when page loads
   const { 
@@ -307,11 +300,11 @@ const Recipes = () => {
           // Standard search with filters
           return await recipeService.searchRecipes({
             query: filters.query,
-            diet: filters.diet,
+            diet: filters.diet ? [filters.diet] : undefined,
             maxReadyTime: filters.maxReadyTime,
             minCalories: filters.minCalories,
             maxCalories: filters.maxCalories,
-            cuisines: filters.cuisines,
+            cuisine: filters.cuisines,
             excludeIngredients: filters.excludeIngredients
           });
         }
@@ -588,9 +581,9 @@ const Recipes = () => {
             )}
             
             {/* Recipe grid - Show search results if available */}
-            {data?.recipes?.length > 0 && (
+            {(data?.recipes?.length ?? 0) > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {data.recipes.map((recipe: Recipe) => (
+                {data?.recipes?.map((recipe: Recipe) => (
                   <Card key={recipe.id} className="overflow-hidden flex flex-col h-full">
                     <div 
                       className="h-48 bg-cover bg-center" 
@@ -606,15 +599,15 @@ const Recipes = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex-grow">
-                      {recipe.diets?.length > 0 && (
+                      {(recipe.diets?.length ?? 0) > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {recipe.diets.slice(0, 3).map(diet => (
+                          {(recipe.diets || []).slice(0, 3).map(diet => (
                             <Badge key={diet} variant="outline">
                               {diet}
                             </Badge>
                           ))}
-                          {recipe.diets.length > 3 && (
-                            <Badge variant="outline">+{recipe.diets.length - 3} more</Badge>
+                          {(recipe.diets?.length ?? 0) > 3 && (
+                            <Badge variant="outline">+{(recipe.diets?.length ?? 0) - 3} more</Badge>
                           )}
                         </div>
                       )}
@@ -672,15 +665,15 @@ const Recipes = () => {
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="flex-grow">
-                          {recipe.diets?.length > 0 && (
+                          {(recipe.diets?.length ?? 0) > 0 && (
                             <div className="flex flex-wrap gap-1">
-                              {recipe.diets.slice(0, 3).map(diet => (
+                              {recipe.diets?.slice(0, 3).map(diet => (
                                 <Badge key={diet} variant="outline">
                                   {diet}
                                 </Badge>
                               ))}
-                              {recipe.diets.length > 3 && (
-                                <Badge variant="outline">+{recipe.diets.length - 3} more</Badge>
+                              {(recipe.diets?.length ?? 0) > 3 && (
+                                <Badge variant="outline">+{(recipe.diets?.length ?? 0) - 3} more</Badge>
                               )}
                             </div>
                           )}
