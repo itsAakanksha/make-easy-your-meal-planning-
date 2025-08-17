@@ -40,23 +40,23 @@ const features = [
   },
 ]
 
-const testimonials = [
-  {
-    quote: "This app has completely transformed how I approach cooking. It's like having a personal nutritionist and chef in my pocket.",
-    author: "Sofia Davis",
-    role: "Fitness Enthusiast"
-  },
-  {
-    quote: "As a busy parent, meal planning was always a struggle. This app saves me hours every week and my family loves the variety of meals.",
-    author: "Marcus Chen",
-    role: "Parent of 3"
-  },
-  {
-    quote: "I've had specific dietary needs after my surgery, and this app makes it so easy to find recipes that are both healthy and delicious.",
-    author: "Eleanor Kim",
-    role: "Recovery Warrior"
-  }
-]
+// const testimonials = [
+//   {
+//     quote: "This app has completely transformed how I approach cooking. It's like having a personal nutritionist and chef in my pocket.",
+//     author: "Sofia Davis",
+//     role: "Fitness Enthusiast"
+//   },
+//   {
+//     quote: "As a busy parent, meal planning was always a struggle. This app saves me hours every week and my family loves the variety of meals.",
+//     author: "Marcus Chen",
+//     role: "Parent of 3"
+//   },
+//   {
+//     quote: "I've had specific dietary needs after my surgery, and this app makes it so easy to find recipes that are both healthy and delicious.",
+//     author: "Eleanor Kim",
+//     role: "Recovery Warrior"
+//   }
+// ]
 
 export default function Landing() {
   return (
